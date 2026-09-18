@@ -41,3 +41,17 @@ Score inherits the existing question editor and result table. Its rubric shows z
 ## Console style verification
 
 The September 18 styling pass preserves authoring, results, history, disclosure lifecycles and WebMCP. Reference observations are in `docs/console-style-reference.md`. The mechanical detector flags Inter as common; the approved TypeSafe reference explicitly uses Inter, so this is an intentional choice. Self-hosted font assets avoid runtime font-service requests. Isolated simulated-provider browser acceptance covers desktop/mobile layout, native tools, controls, modal focus and navigation.
+
+## Action buttons
+
+Black filled buttons identify saving, running, creation, and additions within an editing section. Remove question, case, state field, option, and rubric level use white buttons with red text and borders. Navigation, cancellation, reordering, exports, and reversible archive actions stay neutral. Hover styles apply only to enabled buttons; keyboard focus stays blue, and disabled controls retain their position.
+
+## Focused creation forms
+
+Add question and Add case open native modal forms with isolated drafts, explicit Add and Cancel buttons, Escape dismissal, and focus restoration. Question creation selects Noul, Choice, or Score and shows its relevant criteria. Case creation uses the shared state schema and offers expectations for every question, with labels optionally completed later. The form checks for changes to the evaluation before committing. WebMCP can open/cancel these forms; existing saved-record tools remain available.
+
+SDK request mappings appear in small muted monospace text at the right of field headings: model, state paths, instructions, primitive type, and criteria paths. Friendly accessible names stay unchanged. Names, descriptions, expected answers, tolerance, and the Noul threshold belong to Jevals and do not receive SDK request labels.
+
+In Add case, fields with nonblank schema defaults appear in a Prefilled state section after the expected answers. Fields without defaults appear first. The values remain editable and are saved into the case; they do not become live shared context.
+
+All native dialogs dismiss when a primary pointer gesture begins and ends on the backdrop. Clicking dialog padding or dragging from inside the form does not dismiss it. Escape and explicit Cancel/Close remain available; native modal focus stays trapped and dismissal restores the opener.

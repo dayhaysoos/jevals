@@ -123,7 +123,7 @@ try {
   const names = await p.evaluate(async () =>
     (await document.modelContext.getTools()).map((t) => t.name),
   );
-  assert.equal(names.length, 18);
+  assert.equal(names.length, 20);
   const stringArgs = Number(browser.version().split(".")[0]) < 155;
   const call = (name, input = {}) =>
     p.evaluate(
@@ -479,28 +479,32 @@ try {
   );
   await p.getByRole("button", { name: "Add question", exact: true }).click();
   assert.equal(
-    await p
-      .getByRole("button", { name: "Choice · Select an option", exact: true })
-      .isDisabled(),
-    false,
+    await p.locator('#authoring-dialog [name="type"] option').count(),
+    3,
   );
+  await p.locator('#authoring-dialog [name="name"]').fill("Membership");
+  await p
+    .locator('#authoring-dialog [name="instructions"]')
+    .fill("Does it qualify?");
+  await p.locator('#authoring-dialog button[type="submit"]').click();
   assert.equal(
     await p
-      .getByRole("button", { name: "Score · Ordered rubric", exact: true })
-      .isDisabled(),
-    false,
-  );
-  await p.getByRole("button", { name: "Noul · Yes/no", exact: true }).click();
-  assert.equal(
-    await p.locator('[data-question="instructions"]').inputValue(),
+      .locator("#authoring-error")
+      .textContent()
+      .catch(() => ""),
     "",
   );
+  await p.waitForSelector("#authoring-dialog", { state: "detached" });
   await p.getByRole("link", { name: "Cases", exact: true }).click();
   await p.waitForFunction(
     (page) => document.querySelector(".workspace")?.dataset.page === page,
     "cases",
   );
   await p.getByRole("button", { name: "Add case", exact: true }).click();
+  await p.locator('#authoring-dialog [name="name"]').fill("Example case");
+  await p.locator('#authoring-dialog [name="state"]').fill("An example");
+  await p.locator('#authoring-dialog button[type="submit"]').click();
+  await p.waitForSelector("#authoring-dialog", { state: "detached" });
   await p.getByRole("button", { name: "Save changes", exact: true }).click();
   await p.waitForFunction(
     () => document.querySelector("#notice").textContent === "Changes saved.",
@@ -1246,9 +1250,30 @@ try {
     .click();
   assert.equal(await p.locator("[data-choice-label]").count(), 3);
   await p.getByRole("button", { name: "Add question", exact: true }).click();
+  await p.locator('#authoring-dialog [name="type"]').selectOption("choice");
+  await p.locator('#authoring-dialog [name="name"]').fill("Another choice");
   await p
-    .getByRole("button", { name: "Choice · Select an option", exact: true })
-    .click();
+    .locator('#authoring-dialog [name="instructions"]')
+    .fill("Which option?");
+  await p
+    .locator('#authoring-dialog [name="criteria"]')
+    .fill("first | First option\nsecond | Second option");
+  await p.screenshot({
+    path: "/tmp/jevals-authoring-desktop.png",
+    fullPage: true,
+  });
+  await p.setViewportSize({ width: 390, height: 844 });
+  await p.screenshot({
+    path: "/tmp/jevals-authoring-mobile.png",
+    fullPage: true,
+  });
+  assert.equal(
+    await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    true,
+  );
+  await p.setViewportSize({ width: 1440, height: 950 });
+  await p.locator('#authoring-dialog button[type="submit"]').click();
+  await p.waitForSelector("#authoring-dialog", { state: "detached" });
   assert.equal(await p.locator("[data-choice-label]").count(), 2);
   await p.getByRole("button", { name: "Remove question", exact: true }).click();
   await p.getByRole("link", { name: "Cases", exact: true }).click();
@@ -2029,9 +2054,172 @@ try {
   console.log(
     "Review browser regressions passed: fractional expectations, stable schema keys and stale question guards.",
   );
+  await call("open_authoring_dialog", { kind: "case" });
+  await p.locator('#authoring-dialog [name="name"]').fill("Discard this draft");
+  await p.keyboard.press("Escape");
+  await p.waitForSelector("#authoring-dialog", { state: "detached" });
+  assert.equal(
+    await p.locator("#add").evaluate((el) => el === document.activeElement),
+    true,
+  );
+  await call("open_authoring_dialog", { kind: "question" });
+  await p.locator('#authoring-dialog [name="yes"]').fill("Keep this criterion");
+  await p.locator('#authoring-dialog [name="type"]').selectOption("choice");
+  await p.locator('#authoring-dialog [name="type"]').selectOption("noul");
+  assert.equal(
+    await p.locator('#authoring-dialog [name="yes"]').inputValue(),
+    "Keep this criterion",
+  );
+  await p.locator('#authoring-dialog [name="name"]').fill("Stale draft");
+  await p
+    .locator('#authoring-dialog [name="instructions"]')
+    .fill("Is this stale?");
+  const beforeModalUpdate = await call("get_evaluation", {
+    evaluationId: reviewEval.id,
+  });
+  const modalUpdate = await call("update_evaluation_definition", {
+    evaluationId: reviewEval.id,
+    revision: beforeModalUpdate.revision,
+    changes: { description: "Updated while authoring" },
+  });
+  assert.equal(modalUpdate.isError, undefined);
+  await p.locator('#authoring-dialog button[type="submit"]').click();
+  assert.match(
+    await p.locator("#authoring-error").innerText(),
+    /evaluation changed/i,
+  );
+  await call("close_authoring_dialog", {});
+  await p.waitForSelector("#authoring-dialog", { state: "detached" });
+  const defaultsEval = await call("create_evaluation", {
+    name: "Case defaults",
+    model: "jev-latest",
+    questions: [noulReview],
+    cases: [],
+    stateSchema: [
+      {
+        key: "definition",
+        label: "Sandwich definition",
+        type: "long-text",
+        required: true,
+        defaultValue: "Bread with filling",
+      },
+      {
+        key: "food",
+        label: "Food",
+        type: "text",
+        required: true,
+        defaultValue: "",
+      },
+    ],
+  });
+  await call("open_evaluation", {
+    evaluationId: defaultsEval.id,
+    tab: "cases",
+  });
+  await call("open_authoring_dialog", { kind: "case" });
+  assert.equal(
+    await p.locator('.prefilled-state [name="state_0"]').inputValue(),
+    "Bread with filling",
+  );
+  assert.equal(
+    await p
+      .locator('#authoring-dialog > form > label [name="state_1"]')
+      .count(),
+    1,
+  );
+  await p.locator('#authoring-dialog [name="name"]').fill("Hot dog");
+  await p
+    .locator('#authoring-dialog [name="state_1"]')
+    .fill("Sausage in a roll");
+  await p.locator('#authoring-dialog [name="expected_0"]').selectOption("0");
+  await p.screenshot({
+    path: "/tmp/jevals-case-defaults-desktop.png",
+    fullPage: true,
+  });
+  await p.setViewportSize({ width: 390, height: 844 });
+  await p.screenshot({
+    path: "/tmp/jevals-case-defaults-mobile.png",
+    fullPage: true,
+  });
+  assert.equal(
+    await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    true,
+  );
+  await p.locator('#authoring-dialog button[type="submit"]').click();
+  await p.waitForSelector("#authoring-dialog", { state: "detached" });
+  assert.equal(
+    JSON.parse(await p.locator("#state-preview").textContent()).definition,
+    "Bread with filling",
+  );
+  // Shared modal dismissal: trap focus, preserve inside gestures, restore the trigger.
+  await p.setViewportSize({ width: 1440, height: 950 });
+  for (const [trigger, dialogId] of [
+    ["add", "authoring-dialog"],
+    ["add-question", "authoring-dialog"],
+    ["sidebar-glossary", "glossary-dialog"],
+    ["sidebar-create", "create-dialog"],
+  ]) {
+    if (trigger === "add-question")
+      await call("open_evaluation", {
+        evaluationId: defaultsEval.id,
+        tab: "definition",
+      });
+    await p.locator(`#${trigger}`).click();
+    const surface = p.locator(`#${dialogId}`);
+    assert.equal(
+      (await surface.getAttribute("aria-labelledby")) !== null,
+      true,
+    );
+    assert.equal(
+      await surface.evaluate((el) => el.contains(document.activeElement)),
+      true,
+    );
+    for (let i = 0; i < 16; i++) {
+      await p.keyboard.press("Tab");
+      assert.equal(
+        await surface.evaluate((el) => el.contains(document.activeElement)),
+        true,
+      );
+    }
+    await p.keyboard.press("Shift+Tab");
+    assert.equal(
+      await surface.evaluate((el) => el.contains(document.activeElement)),
+      true,
+    );
+    const bounds = await surface.boundingBox();
+    await p.mouse.click(bounds.x + 8, bounds.y + 8);
+    assert.equal(
+      await surface.isVisible(),
+      true,
+      "dialog padding is not backdrop",
+    );
+    await p.mouse.move(bounds.x + 30, bounds.y + 30);
+    await p.mouse.down();
+    await p.mouse.move(2, 2);
+    await p.mouse.up();
+    assert.equal(
+      await surface.isVisible(),
+      true,
+      "inside drag does not dismiss",
+    );
+    await p.mouse.click(2, 2);
+    await p.waitForFunction(
+      (id) => !document.getElementById(id)?.open,
+      dialogId,
+    );
+    await p.waitForFunction((id) => document.activeElement.id === id, trigger);
+  }
+  await call("open_authoring_dialog", { kind: "case" });
+  await p.setViewportSize({ width: 390, height: 844 });
+  await p.mouse.click(2, 2);
+  await p.waitForSelector("#authoring-dialog", { state: "detached" });
+  assert.equal(
+    await p.locator("#add").evaluate((el) => el === document.activeElement),
+    true,
+  );
   assert.deepEqual(errors, []);
   console.log(
-    "Native WebMCP + browser checks passed: 18 registered tools, create/edit cases, revision conflicts, unsaved-draft protection/navigation, run/trace/export, history deep links/reload, home search, UI creation, delayed-save/agent-read reconciliation, draft saves, desktop/mobile overflow. Simulated provider, isolated DB.",
+    "Native WebMCP + browser checks passed: 20 registered tools, create/edit cases, revision conflicts, unsaved-draft protection/navigation, run/trace/export, history deep links/reload, home search, UI creation, delayed-save/agent-read reconciliation, draft saves, desktop/mobile overflow. Simulated provider, isolated DB.",
   );
 } finally {
   await browser?.close();

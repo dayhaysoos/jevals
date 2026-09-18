@@ -4,6 +4,8 @@ A local workbench for testing [Jev](https://docs.typesafe.ai/introduction) quest
 
 Supports **Noul** (yes/no), **Choice** (select an option), **Score** (an ordered rubric), and combinations of all three.
 
+Add questions and cases in focused forms. Small field labels show the corresponding SDK request fields; prefilled case values stay editable below your expected answers.
+
 ## Get started
 
 Requires Node.js 22.13 or newer.

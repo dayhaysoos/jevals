@@ -32,6 +32,8 @@
   font-size: 14px;
   line-height: 1.5;
   --line: #e5e5e5;
+  --action-danger: #b42318;
+  --action-danger-border: #d99a94;
 }
 .jeval-description {
   white-space: pre-wrap;
@@ -176,7 +178,7 @@ button,
   text-decoration: none;
   white-space: nowrap;
 }
-button:hover,
+button:not(:disabled):hover,
 .button:hover {
   background: #f2f2f2;
 }
@@ -185,11 +187,27 @@ button:hover,
   color: #fff;
   border-color: #171717;
 }
-.primary:hover {
+.primary:not(:disabled):hover {
   background: #333333;
+}
+.primary,
+.danger {
+  font-weight: 600;
+}
+.danger {
+  background: #fff;
+  color: var(--action-danger);
+  border-color: var(--action-danger-border);
+}
+.danger:not(:disabled):hover {
+  background: #fff1f0;
+  border-color: var(--action-danger);
 }
 button:disabled {
   opacity: 0.55;
+  cursor: not-allowed;
+}
+button[aria-busy="true"]:disabled {
   cursor: wait;
 }
 button:focus-visible,
@@ -1026,4 +1044,65 @@ select {
   margin: 5px 0 0;
   line-height: 1.6;
   color: #595959;
+}
+
+.authoring-dialog {
+  width: min(620px, calc(100vw - 40px));
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+}
+.authoring-dialog form {
+  display: grid;
+  gap: 16px;
+}
+.authoring-dialog fieldset {
+  border: 1px solid var(--line);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.authoring-dialog input,
+.authoring-dialog textarea,
+.authoring-dialog select {
+  width: 100%;
+  max-width: 100%;
+}
+.authoring-dialog .actions {
+  justify-content: flex-end;
+}
+.authoring-dialog {
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: #171717;
+}
+.authoring-dialog::backdrop {
+  background: rgb(25 35 40 / 45%);
+}
+.authoring-dialog h2,
+.authoring-dialog p {
+  margin: 0;
+}
+.authoring-dialog .schema-errors:empty {
+  display: none;
+}
+
+.field-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  width: 100%;
+}
+.sdk-field {
+  margin-left: auto;
+  color: #595959;
+  font-size: 11px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  max-width: 100%;
 }

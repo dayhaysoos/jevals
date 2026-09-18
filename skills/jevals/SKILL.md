@@ -17,6 +17,8 @@ If WebMCP is unavailable, report that limitation and use accessible browser cont
 
 ## 2. Define the judgment
 
+For a visible form demonstration, `open_authoring_dialog` opens Add question or Add case for the current Jeval; `close_authoring_dialog` cancels its isolated draft. Use the question/case upsert tools to create saved records directly; they do not fill or submit a visible modal draft. Cancel an open form before navigating to another task.
+
 For authoring, read [primitive examples](references/primitives.md). Choose Noul, Choice, Score, or multiple questions sharing the same case state. Give each question a stable ID, explicit instructions and criteria. Put test-purpose documentation in the optional Jeval description; it is not model instructions. Define a state schema when repeated structured fields should generate forms.
 
 For prompt comparisons, preserve question/case IDs, states and reviewed answer keys. Change instructions rather than redefining the target judgment. If the actual task changes, create a separate experiment and explain why its results are not directly comparable.

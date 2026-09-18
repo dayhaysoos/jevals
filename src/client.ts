@@ -1,3 +1,4 @@
+import { authoringDialog } from "./authoring-dialog.js";
 import { Disclosures } from "./disclosures.js";
 import {
   editQuestion,
@@ -9,6 +10,7 @@ import { type EvaluationSummary } from "./types.js";
 import { metrics, questionResults, runOutcome } from "./questions.js";
 import {
   esc,
+  sdkLabel,
   questionEditor,
   expectationLabel,
   expectationOptions,
@@ -21,12 +23,7 @@ import { EvaluationWorkspace } from "./workspace.js";
 import { decodeSuite } from "./snapshots.js";
 import { api } from "./api.js";
 import { registerWebMCP } from "./webmcp.js";
-import {
-  initialState,
-  stateObject,
-  stateErrors,
-  validateSchema,
-} from "./state-schema.js";
+import { stateObject, stateErrors, validateSchema } from "./state-schema.js";
 const root = document.querySelector<HTMLDivElement>("#app")!;
 let evaluations: EvaluationSummary[] = [];
 let tab = "results";
@@ -165,7 +162,7 @@ function notify(message: string, error = false) {
   el.className = error ? "notice error" : "notice";
 }
 function creationDialogMarkup() {
-  return `<dialog id="create-dialog" aria-labelledby="create-title"><form id="create-evaluation" class="create-evaluation"><h2 id="create-title">New evaluation</h2><p id="create-error" role="alert"></p><p>Questions can share the same state. Add Noul and Choice questions in Definition; Score is coming soon.</p><label>Evaluation name<input id="new-name" required maxlength="200" placeholder="For example, refund requests"></label><label>Description <span class="hint">Optional</span><textarea id="new-description" rows="4" maxlength="20000" placeholder="Describe what this jeval tests."></textarea></label><div class="actions"><button type="submit" class="primary">Create evaluation</button><button type="button" id="cancel-create">Cancel</button></div></form></dialog>`;
+  return `<dialog id="create-dialog" aria-labelledby="create-title"><form id="create-evaluation" class="create-evaluation"><h2 id="create-title">New evaluation</h2><p id="create-error" role="alert"></p><p>Questions share the same case state. Add Noul, Choice, or Score questions in Definition.</p><label>Evaluation name<input id="new-name" required maxlength="200" placeholder="For example, refund requests"></label><label>Description <span class="hint">Optional</span><textarea id="new-description" rows="4" maxlength="20000" placeholder="Describe what this jeval tests."></textarea></label><div class="actions"><button type="submit" class="primary">Create evaluation</button><button type="button" id="cancel-create">Cancel</button></div></form></dialog>`;
 }
 function glossaryMarkup() {
   const terms = [
@@ -477,7 +474,7 @@ async function changeArchive(
 }
 function schemaEditor() {
   const fields = workspace.suite.stateSchema ?? [];
-  return `<details id="schema-editor" ${schemaOpen ? "open" : ""}><summary>State schema · ${fields.length} fields</summary><p class="hint">Define fields once for every case. Defaults initialize new cases. Renaming or removing fields keeps existing JSON values.</p>${fields.map((f, i) => `<div class="schema-field" data-schema-key="${esc(f.key)}"><div class="pair"><label>Field key<input data-field="key" data-field-index="${i}" value="${esc(f.key)}"></label><label>Label<input data-field="label" data-field-index="${i}" value="${esc(f.label)}"></label></div><div class="pair"><label>Type<select data-field="type" data-field-index="${i}"><option value="text" ${f.type === "text" ? "selected" : ""}>Text</option><option value="long-text" ${f.type === "long-text" ? "selected" : ""}>Long text</option></select></label><label class="checkbox-label"><input type="checkbox" data-field="required" data-field-index="${i}" ${f.required ? "checked" : ""}> Required</label></div><label>Default for new cases<textarea data-field="defaultValue" data-field-index="${i}" rows="2">${esc(f.defaultValue)}</textarea></label><button data-remove-field="${i}">Remove field</button></div>`).join("")}<button id="add-field">Add state field</button><p class="hint">With no schema, cases can use plain text or raw JSON.</p></details>`;
+  return `<details id="schema-editor" ${schemaOpen ? "open" : ""}><summary>State schema · ${fields.length} fields</summary><p class="hint">Define fields once for every case. Defaults initialize new cases. Renaming or removing fields keeps existing JSON values.</p>${fields.map((f, i) => `<div class="schema-field" data-schema-key="${esc(f.key)}"><div class="pair"><label>Field key<input data-field="key" data-field-index="${i}" value="${esc(f.key)}"></label><label>Label<input data-field="label" data-field-index="${i}" value="${esc(f.label)}"></label></div><div class="pair"><label>Type<select data-field="type" data-field-index="${i}"><option value="text" ${f.type === "text" ? "selected" : ""}>Text</option><option value="long-text" ${f.type === "long-text" ? "selected" : ""}>Long text</option></select></label><label class="checkbox-label"><input type="checkbox" data-field="required" data-field-index="${i}" ${f.required ? "checked" : ""}> Required</label></div><label>Default for new cases<textarea data-field="defaultValue" data-field-index="${i}" rows="2">${esc(f.defaultValue)}</textarea></label><button class="danger" data-remove-field="${i}">Remove field</button></div>`).join("")}<button id="add-field" class="primary">Add state field</button><p class="hint">With no schema, cases can use plain text or raw JSON.</p></details>`;
 }
 function caseStateEditor(state: string) {
   const fields = workspace.suite.stateSchema ?? [];
@@ -490,7 +487,7 @@ function caseStateEditor(state: string) {
       (f) => object[f.key] === undefined || typeof object[f.key] === "string",
     );
   const form = stateView === "form" && valid;
-  return `<div class="section-title"><h2>State</h2><div class="view-switch" aria-label="State editor view"><button data-state-view="form" aria-pressed="${stateView === "form"}">Form</button><button data-state-view="json" aria-pressed="${stateView === "json"}">JSON</button></div></div>${form ? fields.map((f, i) => `<label>${esc(f.label)} ${f.required ? "<small>Required</small>" : "<small>Optional</small>"}${f.type === "long-text" ? `<textarea data-state-field="${i}" data-state-key="${esc(f.key)}" rows="4">${esc(object![f.key] ?? "")}</textarea>` : `<input data-state-field="${i}" data-state-key="${esc(f.key)}" value="${esc(object![f.key] ?? "")}">`}</label>`).join("") : `${stateView === "form" ? '<p class="hint">This state cannot be displayed as a text-field form. Its original content is preserved below. Edit it into a JSON object with text values to use the form.</p>' : ""}<label>State JSON<textarea class="code" data-case="state" rows="8">${esc(state)}</textarea></label>`}<p id="state-errors" class="schema-errors" role="status">${esc(stateErrors({ ...workspace.suite, cases: [workspace.suite.cases[workspace.selected]] }).join(" "))}</p>${form ? `<details><summary>JSON preview · exact state sent to Jev</summary><pre id="state-preview">${esc(state)}</pre></details>` : ""}`;
+  return `<div class="section-title"><h2>State</h2><div class="view-switch" aria-label="State editor view"><button data-state-view="form" aria-pressed="${stateView === "form"}">Form</button><button data-state-view="json" aria-pressed="${stateView === "json"}">JSON</button></div></div>${form ? fields.map((f, i) => `<label>${sdkLabel(`${esc(f.label)} ${f.required ? "<small>Required</small>" : "<small>Optional</small>"}`, `state[${JSON.stringify(f.key)}]`)}${f.type === "long-text" ? `<textarea data-state-field="${i}" data-state-key="${esc(f.key)}" rows="4">${esc(object![f.key] ?? "")}</textarea>` : `<input data-state-field="${i}" data-state-key="${esc(f.key)}" value="${esc(object![f.key] ?? "")}">`}</label>`).join("") : `${stateView === "form" ? '<p class="hint">This state cannot be displayed as a text-field form. Its original content is preserved below. Edit it into a JSON object with text values to use the form.</p>' : ""}<label>${sdkLabel("State JSON", "state")}<textarea class="code" data-case="state" rows="8">${esc(state)}</textarea></label>`}<p id="state-errors" class="schema-errors" role="status">${esc(stateErrors({ ...workspace.suite, cases: [workspace.suite.cases[workspace.selected]] }).join(" "))}</p>${form ? `<details><summary>JSON preview · exact state sent to Jev</summary><pre id="state-preview">${esc(state)}</pre></details>` : ""}`;
 }
 function bindCaseState() {
   const caseId = workspace.suite.cases[workspace.selected]?.id;
@@ -585,13 +582,13 @@ function render() {
   const m = run ? metrics(run, selectedQuestion) : null;
   const best = workspace.bestRuns[selectedQuestion];
   root.innerHTML = `${shellStart()}
- <main><div class="intro"><div><div class="jeval-title"><h1>${esc(workspace.suite.name)}</h1><button id="about-jeval" type="button" aria-haspopup="dialog" ${workspace.suite.description?.trim() ? "" : "hidden"}>About this jeval</button></div><p>${workspace.suite.questions!.length} question${workspace.suite.questions!.length === 1 ? "" : "s"} · ${workspace.suite.cases.length} cases<span id="save-state">${workspace.dirty ? " · Unsaved changes" : ""}</span></p></div><div class="actions"><button id="save">Save changes</button><button id="run" class="primary" aria-busy="${isRunning(workspace.id!)}" ${workspace.archivedAt || isRunning(workspace.id!) ? "disabled" : ""}>${isRunning(workspace.id!) ? '<span class="run-spinner" aria-hidden="true"></span><span class="sr-only">Running evaluation</span>' : "Run evaluation"}</button></div></div>
+ <main><div class="intro"><div><div class="jeval-title"><h1>${esc(workspace.suite.name)}</h1><button id="about-jeval" type="button" aria-haspopup="dialog" ${workspace.suite.description?.trim() ? "" : "hidden"}>About this jeval</button></div><p>${workspace.suite.questions!.length} question${workspace.suite.questions!.length === 1 ? "" : "s"} · ${workspace.suite.cases.length} cases<span id="save-state">${workspace.dirty ? " · Unsaved changes" : ""}</span></p></div><div class="actions"><button id="save" class="primary">Save changes</button><button id="run" class="primary" aria-busy="${isRunning(workspace.id!)}" ${workspace.archivedAt || isRunning(workspace.id!) ? "disabled" : ""}>${isRunning(workspace.id!) ? '<span class="run-spinner" aria-hidden="true"></span><span class="sr-only">Running evaluation</span>' : "Run evaluation"}</button></div></div>
  <div id="about-popover" popover="auto" role="dialog" aria-labelledby="about-title"><div class="section-title"><h2 id="about-title">About this jeval</h2><button id="close-about" type="button" aria-label="Close description" autofocus>Close</button></div><p id="jeval-description" class="jeval-description">${esc(workspace.suite.description)}</p></div><dialog id="about-dialog" aria-labelledby="about-mobile-title"><div class="section-title"><h2 id="about-mobile-title">About this jeval</h2><button id="close-about-mobile" type="button" aria-label="Close description" autofocus>Close</button></div><p id="mobile-description" class="jeval-description">${esc(workspace.suite.description)}</p></dialog><p id="notice" class="notice" role="status">${workspace.archivedAt ? "Archived · Restore to run again." : ""}</p>
- <nav class="evaluation-tabs" aria-label="Evaluation pages">${["results", "cases", "definition", "runs"].map((t) => `<a href="/evaluations/${workspace.id}/${t}" data-tab="${t}" ${tab === t ? 'aria-current="page"' : ""}>${t[0].toUpperCase() + t.slice(1)}</a>`).join("")}</nav><div class="workspace" data-page="${tab}"><section class="editor"><div class="definition-panel"><h2>Definition</h2><label>Evaluation name<input data-suite="name" value="${esc(workspace.suite.name)}"></label><label>Description <span class="hint">Optional</span><textarea data-suite="description" rows="5" maxlength="20000" placeholder="Describe what this jeval tests, its scope, and what a good result means.">${esc(workspace.suite.description)}</textarea></label><label>Model<input data-suite="model" value="${esc(workspace.suite.model)}"></label><div class="section-title"><h2>Questions</h2><button id="add-question" type="button" aria-expanded="false" aria-controls="question-type-picker">Add question</button></div><div id="question-type-picker" hidden><p>Choose a question type. Every question uses the same case state.</p><button id="add-noul" type="button">Noul · Yes/no</button><button id="add-choice" type="button">Choice · Select an option</button><button id="add-score" type="button">Score · Ordered rubric</button></div><nav class="case-list" aria-label="Evaluation questions">${workspace.suite.questions!.map((item) => `<button data-question-id="${esc(item.id)}" class="case ${item.id === q?.id ? "selected" : ""}" ${item.id === q?.id ? 'aria-current="true"' : ""}><span>${esc(item.name)}</span><small>${esc(item.type)}</small></button>`).join("")}</nav>${questionEditor(q)}
+ <nav class="evaluation-tabs" aria-label="Evaluation pages">${["results", "cases", "definition", "runs"].map((t) => `<a href="/evaluations/${workspace.id}/${t}" data-tab="${t}" ${tab === t ? 'aria-current="page"' : ""}>${t[0].toUpperCase() + t.slice(1)}</a>`).join("")}</nav><div class="workspace" data-page="${tab}"><section class="editor"><div class="definition-panel"><h2>Definition</h2><label>Evaluation name<input data-suite="name" value="${esc(workspace.suite.name)}"></label><label>Description <span class="hint">Optional</span><textarea data-suite="description" rows="5" maxlength="20000" placeholder="Describe what this jeval tests, its scope, and what a good result means.">${esc(workspace.suite.description)}</textarea></label><label>${sdkLabel("Model", "model")}<input data-suite="model" value="${esc(workspace.suite.model)}"></label><div class="section-title"><h2>Questions</h2><button id="add-question" class="primary" type="button" aria-haspopup="dialog" aria-controls="authoring-dialog">Add question</button></div><nav class="case-list" aria-label="Evaluation questions">${workspace.suite.questions!.map((item) => `<button data-question-id="${esc(item.id)}" class="case ${item.id === q?.id ? "selected" : ""}" ${item.id === q?.id ? 'aria-current="true"' : ""}><span>${esc(item.name)}</span><small>${esc(item.type)}</small></button>`).join("")}</nav>${questionEditor(q)}
 
  ${schemaEditor()}<div class="archive-action"><h2>${workspace.archivedAt ? "Archived evaluation" : "Archive evaluation"}</h2><p class="hint">${workspace.archivedAt ? "Restore to show this evaluation in the active list and run its questions again." : "Hide this evaluation from the active list. Its cases and run history are preserved. Save changes before archiving."}</p><button id="archive-evaluation" type="button" ${workspace.dirty ? "disabled" : ""}>${workspace.archivedAt ? "Restore evaluation" : "Archive evaluation"}</button></div></div><div class="cases-panel">
- ${q ? `<label>Question to label<select id="case-question">${workspace.suite.questions!.map((item) => `<option value="${esc(item.id)}" ${item.id === q.id ? "selected" : ""}>${esc(item.name)} · ${esc(item.type)}</option>`).join("")}</select></label>` : '<p class="hint">Add questions in Definition to label your cases.</p>'}<div class="section-title"><h2>Cases <span>${workspace.suite.cases.length}</span></h2><button id="add">Add case</button></div><nav class="case-list" aria-label="Evaluation cases">${workspace.suite.cases.map((item, i) => `<button class="case ${i === workspace.selected ? "selected" : ""}" data-index="${i}"><span>${esc(item.name)}</span><small>${q && item.expectations?.[q.id] ? esc(expectationLabel(q, item.expectations[q.id])) : "Needs expected answer"}</small></button>`).join("")}</nav>
- ${c ? `<div class="case-editor"><label>Case name<input data-case="name" value="${esc(c.name)}"></label><div id="state-panel">${caseStateEditor(c.state)}</div>${q ? `<label>Expected answer${q.type === "score" ? `<input data-case="expected" type="number" min="0" max="${q.criteria.length - 1}" step="any" value="${esc(expectation?.value)}"><span class="hint">${q.criteria.map((level, i) => `${i}: ${esc(level)}`).join(" · ")}</span>` : `<select data-case="expected">${expectationOptions(q, expectation)}</select>`}</label>${q.type === "score" ? `<label>Tolerance <span class="hint">Optional · default 0.5 levels</span><input data-case="tolerance" type="number" min="0" max="${q.criteria.length - 1}" step="0.1" value="${esc(expectation?.tolerance)}" ${!expectation ? "disabled" : ""}></label>` : ""}<label>Why this answer?<textarea data-case="rationale" rows="2" ${!expectation ? "disabled" : ""}>${esc(expectation?.rationale)}</textarea></label>` : ""}<button id="remove">Remove case</button></div>` : `<p class="hint">No cases yet. Add a case to enter state and an expected answer.</p>`}</div></section>
+ ${q ? `<label>Question to label<select id="case-question">${workspace.suite.questions!.map((item) => `<option value="${esc(item.id)}" ${item.id === q.id ? "selected" : ""}>${esc(item.name)} · ${esc(item.type)}</option>`).join("")}</select></label>` : '<p class="hint">Add questions in Definition to label your cases.</p>'}<div class="section-title"><h2>Cases <span>${workspace.suite.cases.length}</span></h2><button id="add" class="primary" aria-haspopup="dialog" aria-controls="authoring-dialog">Add case</button></div><nav class="case-list" aria-label="Evaluation cases">${workspace.suite.cases.map((item, i) => `<button class="case ${i === workspace.selected ? "selected" : ""}" data-index="${i}"><span>${esc(item.name)}</span><small>${q && item.expectations?.[q.id] ? esc(expectationLabel(q, item.expectations[q.id])) : "Needs expected answer"}</small></button>`).join("")}</nav>
+ ${c ? `<div class="case-editor"><label>Case name<input data-case="name" value="${esc(c.name)}"></label><div id="state-panel">${caseStateEditor(c.state)}</div>${q ? `<label>Expected answer${q.type === "score" ? `<input data-case="expected" type="number" min="0" max="${q.criteria.length - 1}" step="any" value="${esc(expectation?.value)}"><span class="hint">${q.criteria.map((level, i) => `${i}: ${esc(level)}`).join(" · ")}</span>` : `<select data-case="expected">${expectationOptions(q, expectation)}</select>`}</label>${q.type === "score" ? `<label>Tolerance <span class="hint">Optional · default 0.5 levels</span><input data-case="tolerance" type="number" min="0" max="${q.criteria.length - 1}" step="0.1" value="${esc(expectation?.tolerance)}" ${!expectation ? "disabled" : ""}></label>` : ""}<label>Why this answer?<textarea data-case="rationale" rows="2" ${!expectation ? "disabled" : ""}>${esc(expectation?.rationale)}</textarea></label>` : ""}<button id="remove" class="danger">Remove case</button></div>` : `<p class="hint">No cases yet. Add a case to enter state and an expected answer.</p>`}</div></section>
  <section class="results"><div class="results-panel"><div class="section-title"><h2>Run results</h2>${run ? `<a class="button" href="/api/runs/${run.id}/export" download>Export JSON</a>` : ""}</div>
  ${run ? `<label>Result question<select id="result-question">${run.suite.questions.map((item) => `<option value="${esc(item.id)}" ${item.id === (run.suite.questions.find((x) => x.id === selectedQuestion)?.id ?? run.suite.questions[0]?.id) ? "selected" : ""}>${esc(item.name)} · ${esc(item.type)}</option>`).join("")}</select></label><p class="hint">Correctness metrics apply to the selected question. Tokens, latency and cost cover the whole request.</p>` : ""}${!run ? `<div class="empty"><h3>Your first run starts here.</h3><p>${workspace.suite.cases.length ? "Review your cases and expected answers, then run the evaluation." : "Start with a question in Definition, then add examples in Cases."}</p><p>Noul judges yes/no; Choice selects an option; Score rates against ordered levels. Correctness comes from your answer key.</p></div>` : `<div class="run-caption"><strong>${esc(run.suite.name)}</strong><span>${new Date(run.createdAt).toLocaleString()} · ${runOutcomeMarkup(runOutcome(originalRun!))}</span></div>${runOutcome(originalRun!) === "partial" ? '<p class="run-outcome-note">Some answers failed. Valid answers are available below; this run cannot qualify as best.</p>' : runOutcome(originalRun!) === "failed" ? '<p class="run-outcome-note">No valid answers are available. Open a case trace to inspect the error.</p>' : ""}<dl class="summary"><div><dt>${resultQuestion?.type === "score" ? "Within tolerance" : "Correct"}</dt><dd>${m!.correct} / ${m!.total}</dd></div><div><dt>${resultQuestion?.type === "score" ? "Pass rate" : "Accuracy"}</dt><dd>${m!.accuracy === null ? "Incomplete" : `${(m!.accuracy * 100).toFixed(0)}%`}</dd></div><div><dt>${resultQuestion?.type === "score" ? "Mean absolute error ↓" : resultQuestion?.type === "choice" ? "Multiclass Brier ↓" : "Brier error ↓"}</dt><dd>${(resultQuestion?.type === "score" ? m!.meanAbsoluteError : m!.brier)?.toFixed(3) ?? "—"}</dd></div></dl><p class="run-meta">${m!.inputTokens} input / ${m!.outputTokens} output tokens · ${(m!.latencyMs / 1000).toFixed(2)}s summed request time · ${money(m!.cost)} estimated</p>${metricDetails(resultQuestion, m!)}<div class="table-wrap"><table><thead><tr>${resultHeaders(resultQuestion)}</tr></thead><tbody>${resultRows.map((row, i) => resultRow(row, i, resultQuestion)).join("")}</tbody></table></div><div id="trace"></div><details><summary>Saved question and cases</summary><pre>${esc(JSON.stringify(run.suite, null, 2))}</pre></details>`}
  </div><div class="history"><h2 id="history-title" tabindex="-1">Run history</h2><p class="hint">${resultQuestion?.type === "score" ? "Best is ranked by lower mean absolute error, then pass rate," : "Best is ranked by accuracy, then lower Brier error,"} on the selected run’s exact case set. Incomplete runs are excluded.</p>${workspace.runs.length ? workspace.runs.map((r) => `<button class="history-row ${r.id === run?.id ? "selected" : ""}" data-run="${r.id}"><span><strong>${esc(r.name)}</strong><small>${new Date(r.createdAt).toLocaleString()} · ${esc(r.model)} · ${runOutcomeMarkup(r.outcome)}</small></span><span>${r.id === best?.id ? '<b class="best">Best on these cases</b>' : ""} ${r.questionMetrics[selectedQuestion]?.accuracy == null ? "—" : `${(r.questionMetrics[selectedQuestion]?.accuracy! * 100).toFixed(0)}%`}</span></button>`).join("") : '<p class="hint">Saved runs will appear here.</p>'}${best && !workspace.runs.some((r) => r.id === best.id) ? `<button class="history-row" data-run="${best.id}"><span><strong>${esc(best.name)}</strong><small>${new Date(best.createdAt).toLocaleString()} · ${esc(best.model)}</small></span><span><b class="best">Best on these cases</b> ${(best.questionMetrics[selectedQuestion].accuracy! * 100).toFixed(0)}%</span></button>` : ""}${workspace.runCursor !== null ? `<button id="load-older-runs" type="button" aria-busy="${workspace.isLoadingHistory}" ${workspace.isLoadingHistory ? "disabled" : ""}>Load older runs</button>` : ""}</div></section></div><footer>Local by default · Model probabilities are not proof of correctness · Example answer keys use an authored definition</footer></main></div>`;
@@ -643,61 +640,35 @@ function render() {
         button.disabled = false;
       }
     };
-  document.querySelector<HTMLButtonElement>("#add-question")!.onclick = () => {
-    const picker = document.querySelector<HTMLElement>(
-      "#question-type-picker",
-    )!;
-    picker.hidden = !picker.hidden;
-    document
-      .querySelector<HTMLButtonElement>("#add-question")!
-      .setAttribute("aria-expanded", String(!picker.hidden));
-    if (!picker.hidden)
-      document.querySelector<HTMLButtonElement>("#add-noul")!.focus();
-  };
-  document.querySelector<HTMLButtonElement>("#add-noul")!.onclick = () => {
-    const id = `question_${crypto.randomUUID().replaceAll("-", "")}`;
-    upsertQuestion(workspace.suite, {
-      id,
-      name: `Question ${workspace.suite.questions!.length + 1}`,
-      type: "noul",
-      instructions: "",
-      yes: "",
-      no: "",
-      threshold: 0.5,
+  const openAuthoring = (kind: "question" | "case") => {
+    const evaluationId = workspace.id;
+    const baseline = JSON.stringify(workspace.suite);
+    const dialog = authoringDialog(workspace.suite, kind, (value) => {
+      if (
+        workspace.id !== evaluationId ||
+        JSON.stringify(workspace.suite) !== baseline
+      )
+        throw Error(
+          "The evaluation changed. Cancel and reopen this form before adding it.",
+        );
+      if ("instructions" in value) {
+        upsertQuestion(workspace.suite, value);
+        selectedQuestion = value.id;
+      } else {
+        workspace.suite.cases.push(value);
+        workspace.selected = workspace.suite.cases.length - 1;
+      }
+      markDirty();
+      disclosures.defer();
     });
-    selectedQuestion = id;
-    markDirty();
-    render();
-    document.querySelector<HTMLInputElement>('[data-question="name"]')?.focus();
+    root.append(dialog);
+    disclosures.open(
+      dialog,
+      document.getElementById(kind === "question" ? "add-question" : "add")!,
+    );
   };
-  document.querySelector<HTMLButtonElement>("#add-choice")!.onclick = () => {
-    const id = `question_${crypto.randomUUID().replaceAll("-", "")}`;
-    upsertQuestion(workspace.suite, {
-      id,
-      name: `Question ${workspace.suite.questions.length + 1}`,
-      type: "choice",
-      instructions: "",
-      criteria: { option_1: "", option_2: "" },
-    });
-    selectedQuestion = id;
-    markDirty();
-    render();
-    document.querySelector<HTMLInputElement>('[data-question="name"]')?.focus();
-  };
-  document.querySelector<HTMLButtonElement>("#add-score")!.onclick = () => {
-    const id = `question_${crypto.randomUUID().replaceAll("-", "")}`;
-    upsertQuestion(workspace.suite, {
-      id,
-      name: `Question ${workspace.suite.questions.length + 1}`,
-      type: "score",
-      instructions: "",
-      criteria: ["", ""],
-    });
-    selectedQuestion = id;
-    markDirty();
-    render();
-    document.querySelector<HTMLInputElement>('[data-question="name"]')?.focus();
-  };
+  document.querySelector<HTMLButtonElement>("#add-question")!.onclick = () =>
+    openAuthoring("question");
   const scoreQuestion = () => {
     const current = workspace.suite.questions.find((item) => item.id === q?.id);
     return current?.type === "score" ? current : undefined;
@@ -804,7 +775,14 @@ function render() {
         const remove = option?.querySelector<HTMLButtonElement>(
           "[data-remove-choice]",
         );
-        if (description) description.dataset.choiceDescription = label;
+        if (description) {
+          description.dataset.choiceDescription = label;
+          const mapping = description
+            .closest("label")
+            ?.querySelector(".sdk-field");
+          if (mapping)
+            mapping.textContent = `criteria[${JSON.stringify(label)}]`;
+        }
         if (remove) {
           remove.dataset.removeChoice = label;
           remove.setAttribute("aria-label", `Remove option ${label}`);
@@ -1116,23 +1094,8 @@ function render() {
         }
       }),
   );
-  document.querySelector<HTMLButtonElement>("#add")!.onclick = () => {
-    try {
-      validateSchema(workspace.suite.stateSchema ?? []);
-    } catch (e) {
-      notify((e as Error).message, true);
-      return;
-    }
-    workspace.suite.cases.push({
-      id: crypto.randomUUID(),
-      name: "New case",
-      state: initialState(workspace.suite.stateSchema ?? []),
-      expectations: {},
-    });
-    workspace.selected = workspace.suite.cases.length - 1;
-    markDirty();
-    render();
-  };
+  document.querySelector<HTMLButtonElement>("#add")!.onclick = () =>
+    openAuthoring("case");
   document
     .querySelector<HTMLButtonElement>("#remove")
     ?.addEventListener("click", () => {
@@ -1278,6 +1241,22 @@ await registerWebMCP({
   open: async (id, nextTab) => {
     await navigate(id, nextTab);
   },
+  authoringDialog: async (kind) => {
+    if (kind === "close")
+      document.querySelector<HTMLDialogElement>("#authoring-dialog")?.close();
+    else {
+      if (document.querySelector<HTMLDialogElement>("#authoring-dialog")?.open)
+        throw Error("Close the current authoring form first.");
+      if (!workspace.id) throw Error("Open an evaluation first.");
+      await navigate(
+        workspace.id,
+        kind === "question" ? "definition" : "cases",
+      );
+      document
+        .getElementById(kind === "question" ? "add-question" : "add")
+        ?.click();
+    }
+  },
   creationDialog: async (action) => {
     if (action === "open") {
       creationTrigger = workspace.id ? "sidebar-create" : "new-evaluation";
@@ -1293,7 +1272,10 @@ await registerWebMCP({
   },
 });
 window.addEventListener("beforeunload", (e) => {
-  if (workspace.hasUnsavedChanges()) {
+  if (
+    workspace.hasUnsavedChanges() ||
+    document.querySelector<HTMLDialogElement>("#authoring-dialog")?.open
+  ) {
     e.preventDefault();
   }
 });
