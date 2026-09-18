@@ -13,6 +13,8 @@ There are no database migrations or evaluation-contract changes. API credentials
 - Packed-install acceptance passed with 32 allowlisted files and no development dependencies, credentials, or workspace databases.
 - npm publication dry run passed for jevals@0.1.1. Real registry publication and tagging remain pending.
 
+The branch [review loop](ui-review-loop.md) fixed two validation-coupling issues. The second independent standards/spec reviews returned zero actionable findings.
+
 ## Publish after review and merge
 
 From the merged main checkout:
