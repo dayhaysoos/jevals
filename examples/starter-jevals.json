@@ -1,0 +1,631 @@
+[
+  {
+    "name": "What counts as a sandwich?",
+    "description": "Tests whether the described food qualifies as a sandwich according to the definition supplied in each case. The shared example definition includes fillings between bread slices or inside a split roll, including hinged rolls, and excludes tortillas, wraps, and bowls. Cases cover hot dogs, grilled cheese, tacos, salad, sub rolls, and a beef patty with its own supplied definition. The goal is consistent use of each case\u2019s definition, rather than resolving a universal sandwich taxonomy.",
+    "model": "jev-1.13.0",
+    "questions": [
+      {
+        "id": "judgment",
+        "name": "Question 1",
+        "type": "noul",
+        "instructions": "Does the food described in `food` count as a sandwich under `definition`? Use only this definition.",
+        "yes": "The described food satisfies the supplied definition, including a split roll with a hinge.",
+        "no": "The described food does not satisfy the supplied definition.",
+        "threshold": 0.5
+      }
+    ],
+    "stateSchema": [
+      {
+        "key": "food",
+        "label": "Food description",
+        "type": "text",
+        "required": true,
+        "defaultValue": ""
+      },
+      {
+        "key": "definition",
+        "label": "Sandwich definition",
+        "type": "long-text",
+        "required": true,
+        "defaultValue": "A sandwich is a filling between two slices of bread or inside a split bread roll. A hinged roll qualifies. Tortillas, wraps, and bowls do not."
+      }
+    ],
+    "cases": [
+      {
+        "id": "hot-dog",
+        "name": "Hot dog",
+        "state": "{\n  \"food\": \"A sausage served inside a split bread roll.\",\n  \"definition\": \"A sandwich is a filling between two slices of bread or inside a split bread roll. A hinged roll qualifies. Tortillas, wraps, and bowls do not.\"\n}",
+        "expectations": {
+          "judgment": {
+            "value": true,
+            "rationale": "A split roll is explicitly included."
+          }
+        }
+      },
+      {
+        "id": "grilled-cheese",
+        "name": "Grilled cheese",
+        "state": "{\n  \"food\": \"Cheese between two slices of bread, toasted.\",\n  \"definition\": \"A sandwich is a filling between two slices of bread or inside a split bread roll. A hinged roll qualifies. Tortillas, wraps, and bowls do not.\"\n}",
+        "expectations": {
+          "judgment": {
+            "value": true,
+            "rationale": "Two bread slices with a filling."
+          }
+        }
+      },
+      {
+        "id": "taco",
+        "name": "Taco",
+        "state": "{\n  \"food\": \"Beans and vegetables in a folded corn tortilla.\",\n  \"definition\": \"A sandwich is a filling between two slices of bread or inside a split bread roll. A hinged roll qualifies. Tortillas, wraps, and bowls do not.\"\n}",
+        "expectations": {
+          "judgment": {
+            "value": false,
+            "rationale": "The definition excludes tortillas."
+          }
+        }
+      },
+      {
+        "id": "salad",
+        "name": "Salad",
+        "state": "{\n  \"food\": \"Lettuce, tomatoes, and dressing in a bowl.\",\n  \"definition\": \"A sandwich is a filling between two slices of bread or inside a split bread roll. A hinged roll qualifies. Tortillas, wraps, and bowls do not.\"\n}",
+        "expectations": {
+          "judgment": {
+            "value": false,
+            "rationale": "No bread enclosing a filling."
+          }
+        }
+      },
+      {
+        "id": "sub",
+        "name": "Sub roll",
+        "state": "{\n  \"food\": \"Meat and vegetables in a hinged split bread roll.\",\n  \"definition\": \"A sandwich is a filling between two slices of bread or inside a split bread roll. A hinged roll qualifies. Tortillas, wraps, and bowls do not.\"\n}",
+        "expectations": {
+          "judgment": {
+            "value": true,
+            "rationale": "A filled hinged bread roll qualifies."
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "Distributed-systems experience",
+    "description": "Tests whether a resume excerpt describes hands-on distributed-systems experience, rather than interest in the topic alone. Positive examples include building a replicated store with consensus and operating cooperating services with messaging and partial-failure handling. Negative examples include a statement of interest and a single-machine application. This checks evidence stated in the excerpt; it does not independently verify the experience or measure overall skill.",
+    "model": "jev-1.13.0",
+    "questions": [
+      {
+        "id": "judgment",
+        "name": "Question 1",
+        "type": "noul",
+        "instructions": "Does this resume mention experience with distributed systems?",
+        "yes": "The excerpt describes hands-on work with distributed systems, including multiple cooperating services or nodes, replication, consensus, or distributed data processing.",
+        "no": "The excerpt does not describe hands-on distributed-systems experience. Interest, a course title, or an unrelated use of distributed is insufficient.",
+        "threshold": 0.5
+      }
+    ],
+    "stateSchema": [
+      {
+        "defaultValue": "",
+        "key": "resume",
+        "label": "Resume excerpt",
+        "required": true,
+        "type": "long-text"
+      }
+    ],
+    "cases": [
+      {
+        "id": "case-1",
+        "name": "Replicated service",
+        "state": "{\n  \"resume\": \"Built a replicated key-value store across five nodes and implemented Raft leader election.\"\n}",
+        "expectations": {
+          "judgment": {
+            "value": true,
+            "rationale": "Authored synthetic example for user review. Describes hands-on replication and consensus."
+          }
+        }
+      },
+      {
+        "id": "case-2",
+        "name": "Multi-service reliability",
+        "state": "{\n  \"resume\": \"Operated a fleet of microservices communicating through Kafka; implemented idempotent consumers and handled partial failures.\"\n}",
+        "expectations": {
+          "judgment": {
+            "value": true,
+            "rationale": "Authored synthetic example for user review. Describes cooperating services and distributed failure handling."
+          }
+        }
+      },
+      {
+        "id": "case-3",
+        "name": "Interest only",
+        "state": "{\n  \"resume\": \"Interested in distributed systems; currently studying introductory computer science.\"\n}",
+        "expectations": {
+          "judgment": {
+            "value": false,
+            "rationale": "Authored synthetic example for user review. States interest, not experience."
+          }
+        }
+      },
+      {
+        "id": "case-4",
+        "name": "Single-machine application",
+        "state": "{\n  \"resume\": \"Built a desktop budgeting app with a local SQLite database on a single machine.\"\n}",
+        "expectations": {
+          "judgment": {
+            "value": false,
+            "rationale": "Authored synthetic example for user review. Only single-machine application experience is described."
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "Personal information in messages",
+    "description": "Tests whether a message contains information that identifies or allows contact with an individual under this jeval\u2019s authored definition. The current cases contrast a synthetic personal name/email and phone number with an anonymous complaint and a generic business support mailbox. A generic organizational address alone is negative under these criteria. These examples test the stated boundary rather than establish comprehensive personal-data detection.",
+    "model": "jev-1.13.0",
+    "questions": [
+      {
+        "id": "judgment",
+        "name": "Question 1",
+        "type": "noul",
+        "instructions": "Does the message contain personally identifiable information?",
+        "yes": "The text includes information that can identify or contact an individual, such as a full personal name, personal email, phone number, home address, or personal identifier. Synthetic examples still count by their content.",
+        "no": "The text contains no identifying or contact information for an individual. Generic organizational contact information alone does not count.",
+        "threshold": 0.5
+      }
+    ],
+    "stateSchema": [
+      {
+        "defaultValue": "",
+        "key": "message",
+        "label": "Message",
+        "required": true,
+        "type": "long-text"
+      }
+    ],
+    "cases": [
+      {
+        "id": "case-1",
+        "name": "Personal email",
+        "state": "{\n  \"message\": \"Please contact Jordan Rivera at jordan.rivera@example.com.\"\n}",
+        "expectations": {
+          "judgment": {
+            "value": true,
+            "rationale": "Authored synthetic example for user review. Contains a full personal name and personal email; both are synthetic."
+          }
+        }
+      },
+      {
+        "id": "case-2",
+        "name": "Phone number",
+        "state": "{\n  \"message\": \"My number is +1 202-555-0147. Please call after 3 pm.\"\n}",
+        "expectations": {
+          "judgment": {
+            "value": true,
+            "rationale": "Authored synthetic example for user review. Contains a synthetic personal telephone number."
+          }
+        }
+      },
+      {
+        "id": "case-3",
+        "name": "Anonymous complaint",
+        "state": "{\n  \"message\": \"The package arrived late and the box was damaged.\"\n}",
+        "expectations": {
+          "judgment": {
+            "value": false,
+            "rationale": "Authored synthetic example for user review. No personal identifying information is present."
+          }
+        }
+      },
+      {
+        "id": "case-4",
+        "name": "Generic business contact",
+        "state": "{\n  \"message\": \"For general product questions, email support@example.com.\"\n}",
+        "expectations": {
+          "judgment": {
+            "value": false,
+            "rationale": "Authored synthetic example for user review. Generic organizational mailbox does not identify an individual under this definition."
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "Room minifridges",
+    "description": "Tests whether a room description explicitly establishes that a minifridge is available inside the room. Equivalent terms such as \u201ccompact refrigerator\u201d should count; a shared refrigerator outside the room or an explicit statement that no minifridge is included should not. The current cases cover direct inclusion, equivalent wording, a shared kitchen, and explicit absence.",
+    "model": "jev-1.13.0",
+    "questions": [
+      {
+        "id": "judgment",
+        "name": "Question 1",
+        "type": "noul",
+        "instructions": "Does the room have a minifridge?",
+        "yes": "The description explicitly states that this room includes a minifridge, mini refrigerator, or compact refrigerator available in the room.",
+        "no": "The description does not establish an in-room minifridge. A shared refrigerator, minibar without refrigeration specified, optional request, or explicit absence is insufficient.",
+        "threshold": 0.5
+      }
+    ],
+    "stateSchema": [
+      {
+        "defaultValue": "",
+        "key": "roomDescription",
+        "label": "Room description",
+        "required": true,
+        "type": "long-text"
+      }
+    ],
+    "cases": [
+      {
+        "id": "case-1",
+        "name": "Explicit minifridge",
+        "state": "{\n  \"roomDescription\": \"This queen room includes Wi-Fi, a desk, and an in-room minifridge.\"\n}",
+        "expectations": {
+          "judgment": {
+            "value": true,
+            "rationale": "Authored synthetic example for user review. Explicitly includes a minifridge in this room."
+          }
+        }
+      },
+      {
+        "id": "case-2",
+        "name": "Compact refrigerator",
+        "state": "{\n  \"roomDescription\": \"Amenities include a compact refrigerator beside the desk and a coffee maker.\"\n}",
+        "expectations": {
+          "judgment": {
+            "value": true,
+            "rationale": "Authored synthetic example for user review. Compact refrigerator is an equivalent term."
+          }
+        }
+      },
+      {
+        "id": "case-3",
+        "name": "Shared kitchen",
+        "state": "{\n  \"roomDescription\": \"The room has a desk. Guests may use the shared refrigerator in the lobby kitchen.\"\n}",
+        "expectations": {
+          "judgment": {
+            "value": false,
+            "rationale": "Authored synthetic example for user review. Refrigerator is shared and outside the room."
+          }
+        }
+      },
+      {
+        "id": "case-4",
+        "name": "Explicit absence",
+        "state": "{\n  \"roomDescription\": \"This economy room does not include a minifridge. Ice is available in the lobby.\"\n}",
+        "expectations": {
+          "judgment": {
+            "value": false,
+            "rationale": "Authored synthetic example for user review. Explicitly says there is no in-room minifridge."
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "Sandwich classification \u2014 mixed primitives",
+    "description": "Tests two independent judgments in one request per food: Noul applies the definition supplied in each case to decide sandwich membership; Choice classifies the described physical structure. Copies six cases from What counts as a sandwich? and adds a burrito to cover wraps. Choice labels follow the food description rather than the case name: a folded taco and the described bare beef patty are other. These authored examples are an exploratory answer key, not a universal food taxonomy or validated benchmark.",
+    "model": "jev-1.13.0",
+    "questions": [
+      {
+        "id": "judgment",
+        "instructions": "Does the food described in `food` count as a sandwich under `definition`? Use only this definition.",
+        "name": "Is it a sandwich?",
+        "no": "The described food does not satisfy the supplied definition.",
+        "threshold": 0.5,
+        "type": "noul",
+        "yes": "The described food satisfies the supplied definition, including a split roll with a hinge."
+      },
+      {
+        "criteria": {
+          "other": "Any structure that does not match the other options, including bowls, folded open tacos, and bare patties.",
+          "sliced-bread sandwich": "A filling between two separate slices of bread.",
+          "split-roll sandwich": "A filling inside a split bread roll, including a hinged roll.",
+          "wrap": "A tortilla or flatbread rolled around and enclosing the filling; excludes a merely folded open taco."
+        },
+        "id": "structure",
+        "instructions": "Classify the physical structure described in food, independently of whether definition calls it a sandwich. Use the food description, not the case name. A folded open taco is other; wrap requires a tortilla or flatbread rolled around the filling. Choose exactly one option.",
+        "name": "Food structure",
+        "type": "choice"
+      }
+    ],
+    "stateSchema": [
+      {
+        "defaultValue": "",
+        "key": "food",
+        "label": "Food description",
+        "required": true,
+        "type": "text"
+      },
+      {
+        "defaultValue": "A sandwich is a filling between two slices of bread or inside a split bread roll. A hinged roll qualifies. Tortillas, wraps, and bowls do not.",
+        "key": "definition",
+        "label": "Sandwich definition",
+        "required": true,
+        "type": "long-text"
+      }
+    ],
+    "cases": [
+      {
+        "id": "hot-dog",
+        "name": "Hot dog",
+        "state": "{\n  \"food\": \"A sausage served inside a split bread roll.\",\n  \"definition\": \"A sandwich is a filling between two slices of bread or inside a split bread roll. A hinged roll qualifies. Tortillas, wraps, and bowls do not.\"\n}",
+        "expectations": {
+          "judgment": {
+            "rationale": "A split roll is explicitly included.",
+            "value": true
+          },
+          "structure": {
+            "rationale": "Sausage inside a split bread roll.",
+            "value": "split-roll sandwich"
+          }
+        }
+      },
+      {
+        "id": "grilled-cheese",
+        "name": "Grilled cheese",
+        "state": "{\n  \"food\": \"Cheese between two slices of bread, toasted.\",\n  \"definition\": \"A sandwich is a filling between two slices of bread or inside a split bread roll. A hinged roll qualifies. Tortillas, wraps, and bowls do not.\"\n}",
+        "expectations": {
+          "judgment": {
+            "rationale": "Two bread slices with a filling.",
+            "value": true
+          },
+          "structure": {
+            "rationale": "Cheese between two slices of bread.",
+            "value": "sliced-bread sandwich"
+          }
+        }
+      },
+      {
+        "id": "taco",
+        "name": "Taco",
+        "state": "{\n  \"food\": \"Beans and vegetables in a folded corn tortilla.\",\n  \"definition\": \"A sandwich is a filling between two slices of bread or inside a split bread roll. A hinged roll qualifies. Tortillas, wraps, and bowls do not.\"\n}",
+        "expectations": {
+          "judgment": {
+            "rationale": "The definition excludes tortillas.",
+            "value": false
+          },
+          "structure": {
+            "rationale": "A folded tortilla is not rolled around the filling; classify as other.",
+            "value": "other"
+          }
+        }
+      },
+      {
+        "id": "salad",
+        "name": "Salad",
+        "state": "{\n  \"food\": \"Lettuce, tomatoes, and dressing in a bowl.\",\n  \"definition\": \"A sandwich is a filling between two slices of bread or inside a split bread roll. A hinged roll qualifies. Tortillas, wraps, and bowls do not.\"\n}",
+        "expectations": {
+          "judgment": {
+            "rationale": "No bread enclosing a filling.",
+            "value": false
+          },
+          "structure": {
+            "rationale": "A salad in a bowl has neither bread nor a rolled tortilla.",
+            "value": "other"
+          }
+        }
+      },
+      {
+        "id": "sub",
+        "name": "Sub roll",
+        "state": "{\n  \"food\": \"Meat and vegetables in a hinged split bread roll.\",\n  \"definition\": \"A sandwich is a filling between two slices of bread or inside a split bread roll. A hinged roll qualifies. Tortillas, wraps, and bowls do not.\"\n}",
+        "expectations": {
+          "judgment": {
+            "rationale": "A filled hinged bread roll qualifies.",
+            "value": true
+          },
+          "structure": {
+            "rationale": "A hinged split bread roll contains the filling.",
+            "value": "split-roll sandwich"
+          }
+        }
+      },
+      {
+        "id": "burrito",
+        "name": "Burrito",
+        "state": "{\n  \"definition\": \"A sandwich is a filling between two slices of bread or inside a split bread roll. A hinged roll qualifies. Tortillas, wraps, and bowls do not.\",\n  \"food\": \"Beans, rice, and vegetables enclosed in a rolled flour tortilla.\"\n}",
+        "expectations": {
+          "judgment": {
+            "rationale": "The supplied definition excludes tortillas and wraps.",
+            "value": false
+          },
+          "structure": {
+            "rationale": "A tortilla is rolled around and encloses the filling.",
+            "value": "wrap"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "Bug severity",
+    "description": "Illustrative authored bug reports inspired by the Score documentation. Tests whether severity follows functional impact and the availability of a workaround, rather than emotional wording. Scale 0\u20132; expected values are proposed labels with tolerance 0.5 levels. Review before treating results as benchmark evidence.",
+    "model": "jev-1.13.0",
+    "questions": [
+      {
+        "criteria": [
+          "Cosmetic issue only; functionality is unaffected.",
+          "A feature is broken or degraded, but an effective workaround is available.",
+          "An essential task is blocked and no effective workaround is available."
+        ],
+        "id": "severity",
+        "instructions": "How severe is the issue described in report? Judge functional impact and whether an effective workaround is available. Emotional language alone does not increase severity.",
+        "name": "Bug severity",
+        "type": "score"
+      }
+    ],
+    "stateSchema": [
+      {
+        "defaultValue": "",
+        "key": "report",
+        "label": "Bug report",
+        "required": true,
+        "type": "long-text"
+      }
+    ],
+    "cases": [
+      {
+        "id": "misaligned",
+        "name": "Misaligned export button",
+        "state": "{\n  \"report\": \"The export button is three pixels off-center. Clicking it still exports correctly.\"\n}",
+        "expectations": {
+          "severity": {
+            "rationale": "Appearance only; export works.",
+            "tolerance": 0.5,
+            "value": 0
+          }
+        }
+      },
+      {
+        "id": "csv-workaround",
+        "name": "PDF export with CSV workaround",
+        "state": "{\n  \"report\": \"PDF export fails. CSV export still contains all the same data and can be converted to PDF as a workaround.\"\n}",
+        "expectations": {
+          "severity": {
+            "rationale": "A feature fails, but an effective workaround exists.",
+            "tolerance": 0.5,
+            "value": 1
+          }
+        }
+      },
+      {
+        "id": "browser-workaround",
+        "name": "Safari export failure",
+        "state": "{\n  \"report\": \"Export crashes in Safari. Every affected user can switch to Chrome and export successfully.\"\n}",
+        "expectations": {
+          "severity": {
+            "rationale": "Switching browsers is an available workaround for all affected users.",
+            "tolerance": 0.5,
+            "value": 1
+          }
+        }
+      },
+      {
+        "id": "login-blocked",
+        "name": "Nobody can sign in",
+        "state": "{\n  \"report\": \"Every user gets a server error when signing in. All supported browsers are affected and there is no alternate way to access the application.\"\n}",
+        "expectations": {
+          "severity": {
+            "rationale": "Essential access is blocked without a workaround.",
+            "tolerance": 0.5,
+            "value": 2
+          }
+        }
+      },
+      {
+        "id": "angry-cosmetic",
+        "name": "Angry report of cosmetic issue",
+        "state": "{\n  \"report\": \"This ugly icon is driving me crazy! The label is misaligned, but all controls work normally.\"\n}",
+        "expectations": {
+          "severity": {
+            "rationale": "Anger does not change the purely cosmetic impact.",
+            "tolerance": 0.5,
+            "value": 0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "Support-ticket quality",
+    "description": "Illustrative authored tickets test how much actionable information a report gives an engineer. Scale 0\u20133 based on feature identification, reproduction steps and environment details. Severity, tone and length do not determine report quality. Proposed expected levels use tolerance 0.5; all rubric levels are represented.",
+    "model": "jev-1.13.0",
+    "questions": [
+      {
+        "criteria": [
+          "No identifiable feature, reproduction steps, or environment; only a vague statement that something is broken.",
+          "Identifies the affected feature, but supplies neither reproduction steps nor environment details.",
+          "Identifies the affected feature and supplies reproduction steps or environment details, but not both.",
+          "Identifies the affected feature and supplies both reproduction steps and environment details."
+        ],
+        "id": "quality",
+        "instructions": "How much actionable information does report give an engineer? Rate the presence of an identifiable feature, steps to reproduce, and environment details. Do not infer missing details or substitute severity, emotional tone, or length for those facts.",
+        "name": "Report quality",
+        "type": "score"
+      }
+    ],
+    "stateSchema": [
+      {
+        "defaultValue": "",
+        "key": "report",
+        "label": "Support ticket",
+        "required": true,
+        "type": "long-text"
+      }
+    ],
+    "cases": [
+      {
+        "id": "vague",
+        "name": "Vague complaint",
+        "state": "{\n  \"report\": \"It is broken. Please fix it.\"\n}",
+        "expectations": {
+          "quality": {
+            "rationale": "No actionable feature, steps or environment.",
+            "tolerance": 0.5,
+            "value": 0
+          }
+        }
+      },
+      {
+        "id": "feature-only",
+        "name": "Feature named",
+        "state": "{\n  \"report\": \"The PDF export feature does not work.\"\n}",
+        "expectations": {
+          "quality": {
+            "rationale": "Names PDF export but supplies neither steps nor environment.",
+            "tolerance": 0.5,
+            "value": 1
+          }
+        }
+      },
+      {
+        "id": "steps-only",
+        "name": "Steps without environment",
+        "state": "{\n  \"report\": \"PDF export fails: open a saved report, click Export, choose PDF, then the spinner never stops.\"\n}",
+        "expectations": {
+          "quality": {
+            "rationale": "Provides steps but no browser, operating system or other environment.",
+            "tolerance": 0.5,
+            "value": 2
+          }
+        }
+      },
+      {
+        "id": "environment-only",
+        "name": "Environment without steps",
+        "state": "{\n  \"report\": \"PDF export fails on Safari 18 running macOS Sequoia. I have not recorded the steps yet.\"\n}",
+        "expectations": {
+          "quality": {
+            "rationale": "Identifies feature and environment but no reproduction steps.",
+            "tolerance": 0.5,
+            "value": 2
+          }
+        }
+      },
+      {
+        "id": "complete",
+        "name": "Steps and environment",
+        "state": "{\n  \"report\": \"On Chrome 153, Windows 11: open a saved report, click Export, choose PDF. The spinner never stops and no file downloads.\"\n}",
+        "expectations": {
+          "quality": {
+            "rationale": "Includes feature, reproducible steps and browser/OS details.",
+            "tolerance": 0.5,
+            "value": 3
+          }
+        }
+      },
+      {
+        "id": "verbose",
+        "name": "Long but unhelpful",
+        "state": "{\n  \"report\": \"PDF export is broken. I am furious, this is unacceptable, we have waited all day and it is still broken. Please fix PDF export immediately!\"\n}",
+        "expectations": {
+          "quality": {
+            "rationale": "Length and anger add no steps or environment.",
+            "tolerance": 0.5,
+            "value": 1
+          }
+        }
+      }
+    ]
+  }
+]

@@ -1,0 +1,39 @@
+{
+  "name": "jevals",
+  "version": "0.0.1",
+  "description": "Evaluation utilities for Jev",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "build": "vite build",
+    "test:browser": "npm run build && node --import tsx test/workbench.browser.mjs",
+    "preview": "JEVALS_SERVE_BUILD=1 tsx src/server.ts",
+    "seed": "tsx src/seed-examples.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "index.js"
+  ],
+  "dependencies": {
+    "@typesafe-ai/sdk": "^0.6.0",
+    "dotenv": "^18.0.0",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.1",
+    "playwright": "^1.63.0",
+    "prettier": "^3.9.8",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}
