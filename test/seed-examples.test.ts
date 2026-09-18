@@ -9,7 +9,6 @@ import { validateSuite } from "../src/questions.js";
 test("curated seeding is repeatable, preserves edited examples and never imports runs", () => {
   const store = new Store(":memory:", {
     starter: false,
-    recoverInterrupted: false,
   });
   try {
     assert.deepEqual(seedExamples(store), { added: 7, skipped: 0 });
@@ -75,7 +74,6 @@ test("opening a seed connection does not interrupt an active run", () => {
       .get();
     const seeder = new Store(path, {
       starter: false,
-      recoverInterrupted: false,
     });
     try {
       seedExamples(seeder);

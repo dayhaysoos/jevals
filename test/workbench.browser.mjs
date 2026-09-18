@@ -84,7 +84,7 @@ const provider = createServer((req, res) => {
   });
 });
 await new Promise((r) => provider.listen(0, "127.0.0.1", r));
-const child = spawn(process.execPath, ["--import", "tsx", "src/server.ts"], {
+const child = spawn(process.execPath, ["--import", "tsx", "src/dev.ts"], {
   env: {
     ...process.env,
     PORT: "4339",
@@ -1800,6 +1800,235 @@ try {
     true,
   );
   console.log("Score visual evidence:", scoreVisualDir);
+  // Review regressions: fractional expectations and focused controls surviving agent updates.
+  await p.setViewportSize({ width: 1440, height: 950 });
+  const reviewSchema = [
+    {
+      key: "food",
+      label: "Food",
+      type: "text",
+      required: true,
+      defaultValue: "",
+    },
+    {
+      key: "definition",
+      label: "Definition",
+      type: "text",
+      required: true,
+      defaultValue: "",
+    },
+  ];
+  const reviewEval = await call("create_evaluation", {
+    name: "Review regression cases",
+    model: "jev-1.13.0",
+    stateSchema: reviewSchema,
+    questions: [
+      {
+        id: "rating",
+        name: "Rating",
+        type: "score",
+        instructions: "Rate it",
+        criteria: ["Low", "Medium", "High"],
+      },
+    ],
+    cases: [
+      {
+        id: "review-case",
+        name: "Review case",
+        state: { food: "hot dog", definition: "bread and filling" },
+        expectations: { rating: { value: 1.5, rationale: "Between levels" } },
+      },
+    ],
+  });
+  await call("open_evaluation", { evaluationId: reviewEval.id, tab: "cases" });
+  assert.equal(await p.locator('[data-case="expected"]').inputValue(), "1.5");
+  await p.locator('[data-case="expected"]').fill("1.25");
+  await p.getByRole("button", { name: "Save changes", exact: true }).click();
+  await p.waitForFunction(() =>
+    document.querySelector("#notice")?.textContent.includes("Changes saved."),
+  );
+  let reviewCurrent = await call("get_evaluation", {
+    evaluationId: reviewEval.id,
+  });
+  assert.equal(reviewCurrent.suite.cases[0].expectations.rating.value, 1.25);
+  await p.locator('[data-state-key="food"]').focus();
+  await call("update_evaluation_definition", {
+    evaluationId: reviewEval.id,
+    revision: reviewCurrent.revision,
+    changes: { stateSchema: [...reviewSchema].reverse() },
+  });
+  await p.locator('[data-state-key="food"]').fill("bagel");
+  await p.getByRole("button", { name: "Save changes", exact: true }).click();
+  await p.waitForFunction(() =>
+    document.querySelector("#notice")?.textContent.includes("Changes saved."),
+  );
+  reviewCurrent = await call("get_evaluation", { evaluationId: reviewEval.id });
+  assert.deepEqual(JSON.parse(reviewCurrent.suite.cases[0].state), {
+    food: "bagel",
+    definition: "bread and filling",
+  });
+  await call("open_evaluation", {
+    evaluationId: reviewEval.id,
+    tab: "definition",
+  });
+  await p.locator("#schema-editor summary").click();
+  await p.locator('[data-schema-key="food"] [data-field="label"]').focus();
+  await call("update_evaluation_definition", {
+    evaluationId: reviewEval.id,
+    revision: reviewCurrent.revision,
+    changes: { stateSchema: reviewSchema },
+  });
+  await p.locator('[data-schema-key="food"] [data-field="label"]').fill("Meal");
+  await p.getByRole("button", { name: "Save changes", exact: true }).click();
+  await p.waitForFunction(() =>
+    document.querySelector("#notice")?.textContent.includes("Changes saved."),
+  );
+  reviewCurrent = await call("get_evaluation", { evaluationId: reviewEval.id });
+  assert.equal(
+    reviewCurrent.suite.stateSchema.find((field) => field.key === "food").label,
+    "Meal",
+  );
+  assert.equal(
+    reviewCurrent.suite.stateSchema.find((field) => field.key === "definition")
+      .label,
+    "Definition",
+  );
+  let releaseReviewRun;
+  responseGate = new Promise((resolve) => {
+    releaseReviewRun = resolve;
+  });
+  const reviewRun = await call("run_evaluation", {
+    evaluationId: reviewEval.id,
+  });
+  const runningReviewDocument = await (
+    await fetch(
+      `${url}/api/evaluations/${reviewEval.id}?includeRun=1&run=${reviewRun.id}`,
+    )
+  ).json();
+  assert.equal(runningReviewDocument.selectedRun.status, "running");
+  releaseReviewRun();
+  responseGate = null;
+  for (let i = 0; i < 40; i++) {
+    const report = await call("get_run", { runId: reviewRun.id });
+    if (report.run.status !== "running") break;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  let reviewDetailReads = 0;
+  const reviewDetailMatcher = (uri) =>
+    uri.pathname === `/api/evaluations/${reviewEval.id}` &&
+    uri.searchParams.get("includeRun") === "1";
+  await p.route(reviewDetailMatcher, async (route) => {
+    reviewDetailReads++;
+    if (reviewDetailReads === 1)
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(runningReviewDocument),
+      });
+    else await route.continue();
+  });
+  await call("open_evaluation", {
+    evaluationId: reviewEval.id,
+    tab: "results",
+  });
+  for (let i = 0; i < 50 && reviewDetailReads < 2; i++)
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.ok(
+    reviewDetailReads >= 2,
+    "running detail continues polling after global summary is complete",
+  );
+  await p.unroute(reviewDetailMatcher);
+  await call("open_evaluation", {
+    evaluationId: reviewEval.id,
+    tab: "definition",
+  });
+  await p.locator('[data-score-level="0"]').focus();
+  const reversedReviewQuestion = {
+    ...reviewCurrent.suite.questions[0],
+    criteria: ["High", "Medium", "Low"],
+  };
+  await call("update_evaluation_definition", {
+    evaluationId: reviewEval.id,
+    revision: reviewCurrent.revision,
+    changes: { questions: [reversedReviewQuestion] },
+  });
+  await p.locator('[data-score-level="0"]').fill("Do not overwrite High");
+  assert.match(await p.locator("#notice").innerText(), /question changed/);
+  reviewCurrent = await call("get_evaluation", { evaluationId: reviewEval.id });
+  assert.deepEqual(reviewCurrent.suite.questions[0].criteria, [
+    "High",
+    "Medium",
+    "Low",
+  ]);
+  await call("open_evaluation", {
+    evaluationId: reviewEval.id,
+    tab: "definition",
+  });
+  const choiceReview = {
+    id: "rating",
+    name: "Route",
+    type: "choice",
+    instructions: "Route it",
+    criteria: { returns: "Returns", shipping: "Shipping", other: "Other" },
+  };
+  await call("update_evaluation_definition", {
+    evaluationId: reviewEval.id,
+    revision: reviewCurrent.revision,
+    changes: { questions: [choiceReview] },
+  });
+  await call("open_evaluation", {
+    evaluationId: reviewEval.id,
+    tab: "definition",
+  });
+  await p.locator('[data-choice-description="other"]').focus();
+  reviewCurrent = await call("get_evaluation", { evaluationId: reviewEval.id });
+  await call("update_evaluation_definition", {
+    evaluationId: reviewEval.id,
+    revision: reviewCurrent.revision,
+    changes: {
+      questions: [
+        {
+          ...choiceReview,
+          criteria: { returns: "Returns", shipping: "Shipping" },
+        },
+      ],
+    },
+  });
+  await p
+    .locator('[data-choice-description="other"]')
+    .fill("Do not recreate removed option");
+  assert.match(await p.locator("#notice").innerText(), /question changed/);
+  reviewCurrent = await call("get_evaluation", { evaluationId: reviewEval.id });
+  assert.equal("other" in reviewCurrent.suite.questions[0].criteria, false);
+  const noulReview = {
+    id: "rating",
+    name: "Membership",
+    type: "noul",
+    instructions: "Is it?",
+    yes: "Yes",
+    no: "No",
+    threshold: 0.5,
+  };
+  await call("update_evaluation_definition", {
+    evaluationId: reviewEval.id,
+    revision: reviewCurrent.revision,
+    changes: { questions: [noulReview] },
+  });
+  await call("open_evaluation", { evaluationId: reviewEval.id, tab: "cases" });
+  await p.locator('[data-case="expected"]').focus();
+  reviewCurrent = await call("get_evaluation", { evaluationId: reviewEval.id });
+  await call("update_evaluation_definition", {
+    evaluationId: reviewEval.id,
+    revision: reviewCurrent.revision,
+    changes: { questions: [choiceReview] },
+  });
+  await p.locator('[data-case="expected"]').selectOption("true");
+  assert.match(await p.locator("#notice").innerText(), /question changed/);
+  reviewCurrent = await call("get_evaluation", { evaluationId: reviewEval.id });
+  assert.equal("rating" in reviewCurrent.suite.cases[0].expectations, false);
+  console.log(
+    "Review browser regressions passed: fractional expectations, stable schema keys and stale question guards.",
+  );
   assert.deepEqual(errors, []);
   console.log(
     "Native WebMCP + browser checks passed: 18 registered tools, create/edit cases, revision conflicts, unsaved-draft protection/navigation, run/trace/export, history deep links/reload, home search, UI creation, delayed-save/agent-read reconciliation, draft saves, desktop/mobile overflow. Simulated provider, isolated DB.",

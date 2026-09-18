@@ -42,7 +42,7 @@ test("SDK request, snapshots, persistence, errors and export work with a simulat
   });
   await new Promise<void>((r) => provider.listen(0, "127.0.0.1", r));
   const port = (provider.address() as { port: number }).port;
-  const child = spawn(process.execPath, ["--import", "tsx", "src/server.ts"], {
+  const child = spawn(process.execPath, ["--import", "tsx", "src/dev.ts"], {
     env: {
       ...process.env,
       PORT: "4328",

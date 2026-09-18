@@ -25,15 +25,13 @@ import {
 const projectionVersion = 2;
 export class Store {
   readonly db: DatabaseSync;
-  constructor(
-    path: string,
-    options: { starter?: boolean; recoverInterrupted?: boolean } = {},
-  ) {
+  constructor(path: string, options: { starter?: boolean } = {}) {
     this.db = new DatabaseSync(path);
-    this.db.exec(
-      "PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS settings(id INTEGER PRIMARY KEY,json TEXT NOT NULL); CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY,json TEXT NOT NULL); CREATE TABLE IF NOT EXISTS evaluations(id TEXT PRIMARY KEY,json TEXT NOT NULL)",
-    );
-    this.db.exec(`
+    try {
+      this.db.exec(
+        "PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS settings(id INTEGER PRIMARY KEY,json TEXT NOT NULL); CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY,json TEXT NOT NULL); CREATE TABLE IF NOT EXISTS evaluations(id TEXT PRIMARY KEY,json TEXT NOT NULL)",
+      );
+      this.db.exec(`
       CREATE TABLE IF NOT EXISTS run_summaries (
         run_id TEXT PRIMARY KEY,
         evaluation_id TEXT NOT NULL,
@@ -46,67 +44,73 @@ export class Store {
       CREATE INDEX IF NOT EXISTS summary_history ON run_summaries(evaluation_id, position DESC);
       CREATE INDEX IF NOT EXISTS summary_dataset ON run_summaries(evaluation_id, dataset_key);
     `);
-    const columns = this.db.prepare("PRAGMA table_info(runs)").all();
-    if (!columns.some((c) => c.name === "evaluation_id"))
-      this.db.exec(
-        "ALTER TABLE runs ADD COLUMN evaluation_id TEXT; CREATE INDEX runs_evaluation ON runs(evaluation_id)",
-      );
-    this.db.exec("BEGIN IMMEDIATE");
-    try {
-      if (
-        !this.db.prepare("SELECT id FROM evaluations LIMIT 1").get() &&
-        (options.starter !== false ||
-          this.db.prepare("SELECT json FROM settings WHERE id=1").get())
-      ) {
-        const row = this.db
-          .prepare("SELECT json FROM settings WHERE id=1")
-          .get();
-        const suite: SnapshotSuite = row
-          ? JSON.parse(String(row.json))
-          : structuredClone(seed);
+      const columns = this.db.prepare("PRAGMA table_info(runs)").all();
+      if (!columns.some((c) => c.name === "evaluation_id"))
+        this.db.exec(
+          "ALTER TABLE runs ADD COLUMN evaluation_id TEXT; CREATE INDEX runs_evaluation ON runs(evaluation_id)",
+        );
+      this.db.exec("BEGIN IMMEDIATE");
+      try {
         if (
-          suite.stateSchema === undefined &&
-          suite.instructions === seed.questions[0].instructions
-        )
-          suite.stateSchema = seed.stateSchema;
-        const evaluation = this.create(decodeSuite(suite));
+          !this.db.prepare("SELECT id FROM evaluations LIMIT 1").get() &&
+          (options.starter !== false ||
+            this.db.prepare("SELECT json FROM settings WHERE id=1").get())
+        ) {
+          const row = this.db
+            .prepare("SELECT json FROM settings WHERE id=1")
+            .get();
+          const suite: SnapshotSuite = row
+            ? JSON.parse(String(row.json))
+            : structuredClone(seed);
+          if (
+            suite.stateSchema === undefined &&
+            suite.instructions === seed.questions[0].instructions
+          )
+            suite.stateSchema = seed.stateSchema;
+          const evaluation = this.create(decodeSuite(suite));
+          for (const row of this.db
+            .prepare("SELECT id,json FROM runs WHERE evaluation_id IS NULL")
+            .all()) {
+            const run = JSON.parse(String(row.json)) as SnapshotRun;
+            run.evaluationId = evaluation.id;
+            this.db
+              .prepare("UPDATE runs SET json=?,evaluation_id=? WHERE id=?")
+              .run(JSON.stringify(run), evaluation.id, String(row.id));
+          }
+        }
         for (const row of this.db
-          .prepare("SELECT id,json FROM runs WHERE evaluation_id IS NULL")
+          .prepare("SELECT id,json FROM evaluations")
           .all()) {
-          const run = JSON.parse(String(row.json)) as SnapshotRun;
-          run.evaluationId = evaluation.id;
-          this.db
-            .prepare("UPDATE runs SET json=?,evaluation_id=? WHERE id=?")
-            .run(JSON.stringify(run), evaluation.id, String(row.id));
+          const e = JSON.parse(String(row.json)) as SnapshotEvaluation;
+          if (e.suite.questions === undefined) {
+            e.suite = encodeSuite(decodeSuite(e.suite));
+            e.revision += 1;
+            this.db
+              .prepare("UPDATE evaluations SET json=? WHERE id=?")
+              .run(JSON.stringify(e), e.id);
+          }
         }
+        this.db.exec("COMMIT");
+      } catch (e) {
+        this.db.exec("ROLLBACK");
+        throw e;
       }
-      for (const row of this.db
-        .prepare("SELECT id,json FROM evaluations")
-        .all()) {
-        const e = JSON.parse(String(row.json)) as SnapshotEvaluation;
-        if (e.suite.questions === undefined) {
-          e.suite = encodeSuite(decodeSuite(e.suite));
-          e.revision += 1;
-          this.db
-            .prepare("UPDATE evaluations SET json=? WHERE id=?")
-            .run(JSON.stringify(e), e.id);
-        }
-      }
-      this.db.exec("COMMIT");
-    } catch (e) {
-      this.db.exec("ROLLBACK");
-      throw e;
+      this.backfillSummaries();
+    } catch (error) {
+      this.db.close();
+      throw error;
     }
+  }
+  /** Called by the owning database connection, never by ordinary construction. */
+  recoverInterruptedRuns() {
     // Interrupted recovery changes status only; preserve the historical snapshot shape.
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      for (const row of options.recoverInterrupted === false
-        ? []
-        : this.db
-            .prepare(
-              "SELECT id,json FROM runs WHERE json_extract(json, '$.status')='running'",
-            )
-            .all()) {
+      for (const row of this.db
+        .prepare(
+          "SELECT id,json FROM runs WHERE json_extract(json, '$.status')='running'",
+        )
+        .all()) {
         const snapshot = JSON.parse(String(row.json)) as SnapshotRun;
         snapshot.status = "failed";
         this.db
@@ -236,6 +240,47 @@ export class Store {
       }),
     );
     return { run, bestRuns };
+  }
+  /** Adopt reviewed examples atomically without replacing existing Jevals. */
+  adoptExamples(suites: Suite[]): { added: number; skipped: number } {
+    this.db.exec(
+      "CREATE TABLE IF NOT EXISTS example_seeds (name TEXT PRIMARY KEY, evaluation_id TEXT NOT NULL)",
+    );
+    this.db.exec("BEGIN IMMEDIATE");
+    let added = 0,
+      skipped = 0;
+    try {
+      for (const suite of suites) {
+        // Remember adoption, so renaming/editing an example never causes a duplicate later.
+        const marker = this.db
+          .prepare("SELECT evaluation_id FROM example_seeds WHERE name=?")
+          .get(suite.name);
+        const existing =
+          marker ||
+          this.db
+            .prepare(
+              "SELECT id AS evaluation_id FROM evaluations WHERE json_extract(json,'$.suite.name')=? LIMIT 1",
+            )
+            .get(suite.name);
+        if (existing) {
+          this.db
+            .prepare("INSERT OR IGNORE INTO example_seeds VALUES (?,?)")
+            .run(suite.name, String(existing.evaluation_id));
+          skipped++;
+        } else {
+          const evaluation = this.create(suite);
+          this.db
+            .prepare("INSERT INTO example_seeds VALUES (?,?)")
+            .run(suite.name, evaluation.id);
+          added++;
+        }
+      }
+      this.db.exec("COMMIT");
+      return { added, skipped };
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
   }
   create(suite: Suite): Evaluation {
     suite = structuredClone(suite);

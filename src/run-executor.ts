@@ -39,12 +39,21 @@ export class RunRequestError extends Error {
 /** Acceptance, progress and finalization share one ownership lifetime per Jeval. */
 export class RunExecutor {
   private readonly running = new Set<string>();
+  private readonly pending = new Set<Promise<Run>>();
+  private stopping = false;
+
+  async close(): Promise<void> {
+    this.stopping = true;
+    await Promise.allSettled(this.pending);
+  }
   constructor(private readonly options: Options) {}
 
   start(input: { evaluationId?: string; suite?: unknown }): {
     id: string;
     finished: Promise<Run>;
   } {
+    if (this.stopping)
+      throw new RunRequestError(503, "The workbench is shutting down.");
     let suite;
     let evaluation;
     try {
@@ -130,7 +139,13 @@ export class RunExecutor {
       };
       // A run is accepted only once its initial snapshot is durable.
       this.options.store.saveRun(run);
-      return { id: run.id, finished: this.execute(run) };
+      const finished = this.execute(run);
+      this.pending.add(finished);
+      void finished.then(
+        () => this.pending.delete(finished),
+        () => this.pending.delete(finished),
+      );
+      return { id: run.id, finished };
     } catch {
       this.running.delete(evaluationId);
       throw new RunRequestError(

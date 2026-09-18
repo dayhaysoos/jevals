@@ -4,6 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { openDatabase } from "../src/database.js";
 import { Store } from "../src/store.js";
 import { seed } from "../src/seed.js";
 import { encodeRun, encodeSuite } from "../src/snapshots.js";
@@ -279,7 +280,8 @@ test("summary backfill is idempotent and recovery preserves historical definitio
       "e",
     );
     db.close();
-    let store = new Store(path);
+    let connection = openDatabase(path, "server");
+    let store = connection.store;
     assert.deepEqual(store.snapshot(finished.id), finished);
     assert.deepEqual(store.snapshot(interrupted.id), {
       ...interrupted,
@@ -290,8 +292,9 @@ test("summary backfill is idempotent and recovery preserves historical definitio
     const json = store.db
       .prepare("SELECT json FROM run_summaries ORDER BY position")
       .all();
-    store.db.close();
-    store = new Store(path);
+    connection.close();
+    connection = openDatabase(path, "server");
+    store = connection.store;
     assert.deepEqual(
       store.db
         .prepare("SELECT json FROM run_summaries ORDER BY position")
@@ -299,7 +302,7 @@ test("summary backfill is idempotent and recovery preserves historical definitio
       json,
     );
     assert.deepEqual(store.snapshot(finished.id), finished);
-    store.db.close();
+    connection.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

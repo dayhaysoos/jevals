@@ -1,23 +1,36 @@
 {
   "name": "jevals",
-  "version": "0.0.1",
-  "description": "Evaluation utilities for Jev",
+  "version": "0.1.0",
+  "description": "Local evaluation workbench for TypeSafe Jev",
   "main": "index.js",
   "scripts": {
-    "dev": "tsx src/server.ts",
+    "dev": "tsx src/dev.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts",
-    "build": "vite build",
+    "build": "vite build && tsc -p tsconfig.build.json",
     "test:browser": "npm run build && node --import tsx test/workbench.browser.mjs",
-    "preview": "JEVALS_SERVE_BUILD=1 tsx src/server.ts",
-    "seed": "tsx src/seed-examples.ts"
+    "preview": "JEVALS_SERVE_BUILD=1 tsx src/dev.ts",
+    "seed": "tsx src/seed-examples.ts",
+    "prepack": "npm run build",
+    "test:package": "node test/package.acceptance.mjs"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "jev",
+    "evals",
+    "typesafe",
+    "webmcp"
+  ],
+  "author": "Nick DeJesus",
   "license": "MIT",
   "type": "module",
   "files": [
-    "index.js"
+    "index.js",
+    "bin/",
+    "lib/",
+    "dist/",
+    "examples/",
+    "skills/jevals/",
+    "public/fonts/Inter-OFL.txt"
   ],
   "dependencies": {
     "@typesafe-ai/sdk": "^0.6.0",
@@ -35,5 +48,15 @@
   },
   "engines": {
     "node": ">=22.13"
+  },
+  "bin": {
+    "jevals": "bin/jevals.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dayhaysoos/jevals.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dayhaysoos/jevals/issues"
   }
 }
