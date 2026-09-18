@@ -65,19 +65,17 @@ User data stays in the workspace and survives package upgrades.`);
   mkdirSync(dirname(database), { recursive: true });
   process.env.JEVALS_DB = database;
   if (config.command === "seed") {
-    const { Store } = await import("../lib/store.js");
+    const { openDatabase } = await import("../lib/database.js");
     const { seedExamples } = await import("../lib/seed-examples.js");
-    const store = new Store(database, {
-      starter: false,
-      recoverInterrupted: false,
-    });
+    const connection = openDatabase(database, "seed");
+    const { store } = connection;
     try {
       const result = seedExamples(store);
       console.log(
         `Added ${result.added} example Jevals; skipped ${result.skipped}. Database: ${database}`,
       );
     } finally {
-      store.db.close();
+      connection.close();
     }
     return;
   }

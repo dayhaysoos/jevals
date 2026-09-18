@@ -7,6 +7,7 @@ import {
   writeFileSync,
   existsSync,
   readFileSync,
+  symlinkSync,
   rmSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -191,6 +192,13 @@ try {
     url = `http://127.0.0.1:${port}`;
   await start(port);
   assert.match(logs, /TYPESAFE_API_KEY/);
+  assert.throws(() => cliRun(["seed", "--dir", workspace]), /already using/);
+  const alias = join(dir, "database-alias.sqlite");
+  symlinkSync(join(workspace, ".data", "jevals.sqlite"), alias);
+  assert.throws(
+    () => cliRun(["start", "--dir", workspace, "--db", alias, "--no-open"]),
+    /already using/,
+  );
   const home = await (await fetch(url + "/api/evaluations")).json();
   assert.equal(home.evaluations.length, 7);
   assert.equal(home.configured, false);

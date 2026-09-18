@@ -39,7 +39,7 @@ npx jevals
 npx jevals seed
 ```
 
-Adds seven example evaluations covering sandwich classification, minifridges, personal information, distributed systems, bug severity, and support-ticket quality. Re-running the command preserves existing evaluations and edits. No API requests are made during seeding.
+Adds seven example evaluations covering sandwich classification, minifridges, personal information, distributed systems, bug severity, and support-ticket quality. Re-running the command preserves existing evaluations and edits. No API requests are made during seeding. Stop the server before seeding the same database; each database has one owner at a time.
 
 ## Basic workflow
 

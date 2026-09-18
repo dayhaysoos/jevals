@@ -1,7 +1,8 @@
-import { readFileSync, mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { Store } from "./store.js";
+import type { Store } from "./store.js";
+import { openDatabase } from "./database.js";
 import { validateSuite } from "./questions.js";
 
 /** Frozen, reviewed examples; never read the author's live database at seed time. */
@@ -66,18 +67,15 @@ if (
     const dbPath = resolve(
       args[1] ?? process.env.JEVALS_DB ?? ".data/jevals.sqlite",
     );
-    mkdirSync(dirname(dbPath), { recursive: true });
-    const store = new Store(dbPath, {
-      starter: false,
-      recoverInterrupted: false,
-    });
+    const connection = openDatabase(dbPath, "seed");
+    const { store } = connection;
     try {
       const result = seedExamples(store);
       console.log(
         `Added ${result.added} example Jevals; skipped ${result.skipped}. Database: ${dbPath}`,
       );
     } finally {
-      store.db.close();
+      connection.close();
     }
   }
 }

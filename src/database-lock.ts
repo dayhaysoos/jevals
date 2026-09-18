@@ -4,13 +4,27 @@ import {
   writeFileSync,
   readFileSync,
   unlinkSync,
+  realpathSync,
+  mkdirSync,
 } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { resolve } from "node:path";
+import { resolve, dirname, basename } from "node:path";
+
+/** Resolve file aliases before choosing the ownership lock. */
+export function databaseIdentity(database: string): string {
+  const path = resolve(database);
+  mkdirSync(dirname(path), { recursive: true });
+  try {
+    return realpathSync(path);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    return resolve(realpathSync(dirname(path)), basename(path));
+  }
+}
 
 /** One server owns recovery and writes for a database; seed connections do not run recovery. */
 export function lockDatabase(database: string): () => void {
-  const path = resolve(database) + ".lock";
+  const path = databaseIdentity(database) + ".lock";
   const token = randomUUID();
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -21,6 +35,7 @@ export function lockDatabase(database: string): () => void {
         closeSync(fd);
       }
       const release = () => {
+        process.removeListener("exit", release);
         try {
           if (JSON.parse(readFileSync(path, "utf8")).token === token)
             unlinkSync(path);
