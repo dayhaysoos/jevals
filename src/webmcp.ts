@@ -31,6 +31,7 @@ interface Context {
 }
 interface Hooks {
   workspace: EvaluationWorkspace;
+  authoringDialog?: (kind: "question" | "case" | "close") => Promise<void>;
   creationDialog: (action: "open" | "close") => Promise<void>;
   changed: () => Promise<void>;
   open: (id: string, tab: string) => Promise<void>;
@@ -151,6 +152,30 @@ export function tools(hooks: Hooks): Tool[] {
     return saved;
   };
   return [
+    make(
+      "open_authoring_dialog",
+      "Open a focused Add question or Add case form for the current evaluation. Form drafts remain private until submitted; existing upsert tools still create saved records directly.",
+      schema({ kind: { type: "string", enum: ["question", "case"] } }, [
+        "kind",
+      ]),
+      async (i) => {
+        if (!hooks.authoringDialog)
+          throw Error("Authoring dialogs unavailable.");
+        await hooks.authoringDialog(i.kind as "question" | "case");
+        return { opened: i.kind };
+      },
+      false,
+    ),
+    make(
+      "close_authoring_dialog",
+      "Cancel the open authoring form without adding its draft.",
+      schema({}, []),
+      async () => {
+        await hooks.authoringDialog?.("close");
+        return { closed: true };
+      },
+      false,
+    ),
     make(
       "open_evaluation_creation",
       "Open the accessible new evaluation dialog to name a collection. Add typed questions later in Definition. Does not create an evaluation.",

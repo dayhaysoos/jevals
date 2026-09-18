@@ -9,24 +9,29 @@ export const esc = (value: unknown) =>
       ]!,
   );
 
+/** Keep accessible field names friendly while showing the SDK request mapping. */
+export function sdkLabel(label: string, path: string): string {
+  return `<span class="field-heading"><span>${label}</span><code class="sdk-field" aria-hidden="true">${esc(path)}</code></span>`;
+}
+
 /** Typed fields and display rules; DOM focus and navigation stay in the browser adapter. */
 export function questionEditor(q: Question | undefined): string {
   if (!q)
     return '<p class="hint">No questions yet. Add a question to define what this evaluation checks.</p>';
   const fields =
     q.type === "noul"
-      ? `<div class="pair"><label>Yes means<textarea data-question="yes" rows="3">${esc(q.yes)}</textarea></label><label>No means<textarea data-question="no" rows="3">${esc(q.no)}</textarea></label></div><label>Yes threshold<input data-question="threshold" type="number" min="0" max="1" step="0.05" value="${q.threshold}"></label>`
+      ? `<div class="pair"><label>${sdkLabel("Yes means", "criteria.true")}<textarea data-question="yes" rows="3">${esc(q.yes)}</textarea></label><label>${sdkLabel("No means", "criteria.false")}<textarea data-question="no" rows="3">${esc(q.no)}</textarea></label></div><label>Yes threshold<input data-question="threshold" type="number" min="0" max="1" step="0.05" value="${q.threshold}"></label>`
       : q.type === "score"
-        ? `<div class="section-title"><h3>Ordered levels</h3><button id="add-score-level" type="button" ${q.criteria.length >= 10 ? "disabled" : ""}>Add level</button></div><p class="hint">Use 2–10 descriptions, ordered from lowest to highest. Changing level order clears expected scores for review.</p>${q.criteria.map((level, i) => `<div class="choice-option"><label>Level ${i}<textarea data-score-level="${i}" rows="2">${esc(level)}</textarea></label><button data-score-up="${i}" type="button" ${i === 0 ? "disabled" : ""} aria-label="Move level ${i} up">Move up</button><button data-score-down="${i}" type="button" ${i === q.criteria.length - 1 ? "disabled" : ""} aria-label="Move level ${i} down">Move down</button><button data-score-remove="${i}" type="button" aria-label="Remove level ${i}">Remove level</button></div>`).join("")}`
-        : `<div class="section-title"><h3>Options</h3><button id="add-choice-option" type="button">Add option</button></div><p class="hint">Use distinct labels and descriptions. Add at least two options before running.</p>${Object.entries(
+        ? `<div class="section-title"><h3>Ordered levels</h3><button id="add-score-level" class="primary" type="button" ${q.criteria.length >= 10 ? "disabled" : ""}>Add level</button></div><p class="hint">Use 2–10 descriptions, ordered from lowest to highest. Changing level order clears expected scores for review.</p>${q.criteria.map((level, i) => `<div class="choice-option"><label>${sdkLabel(`Level ${i}`, `criteria[${i}]`)}<textarea data-score-level="${i}" rows="2">${esc(level)}</textarea></label><button data-score-up="${i}" type="button" ${i === 0 ? "disabled" : ""} aria-label="Move level ${i} up">Move up</button><button data-score-down="${i}" type="button" ${i === q.criteria.length - 1 ? "disabled" : ""} aria-label="Move level ${i} down">Move down</button><button class="danger" data-score-remove="${i}" type="button" aria-label="Remove level ${i}">Remove level</button></div>`).join("")}`
+        : `<div class="section-title"><h3>Options</h3><button id="add-choice-option" class="primary" type="button">Add option</button></div><p class="hint">Use distinct labels and descriptions. Add at least two options before running.</p>${Object.entries(
             q.criteria,
           )
             .map(
               ([label, description], i) =>
-                `<div class="choice-option"><label>Option ${i + 1} label<input data-choice-label="${esc(label)}" value="${esc(label)}" maxlength="200"></label><label>Option ${i + 1} description<textarea data-choice-description="${esc(label)}" rows="2">${esc(description)}</textarea></label><button data-remove-choice="${esc(label)}" type="button" aria-label="Remove option ${esc(label)}">Remove option</button></div>`,
+                `<div class="choice-option"><label>${sdkLabel(`Option ${i + 1} label`, "criteria key")}<input data-choice-label="${esc(label)}" value="${esc(label)}" maxlength="200"></label><label>${sdkLabel(`Option ${i + 1} description`, `criteria[${JSON.stringify(label)}]`)}<textarea data-choice-description="${esc(label)}" rows="2">${esc(description)}</textarea></label><button class="danger" data-remove-choice="${esc(label)}" type="button" aria-label="Remove option ${esc(label)}">Remove option</button></div>`,
             )
             .join("")}`;
-  return `<div class="question-editor"><p class="hint">${q.type === "noul" ? "Noul" : q.type === "score" ? "Score" : "Choice"} · Question ID: ${esc(q.id)}</p><label>Question name<input data-question="name" value="${esc(q.name)}"></label><label>Question<textarea data-question="instructions" rows="3">${esc(q.instructions)}</textarea></label>${fields}<button id="remove-question" type="button">Remove question</button></div>`;
+  return `<div class="question-editor"><p class="hint">${q.type === "noul" ? "Noul" : q.type === "score" ? "Score" : "Choice"} · Question ID: ${esc(q.id)}</p><label>Question name<input data-question="name" value="${esc(q.name)}"></label><label>${sdkLabel("Question", "instructions")}<textarea data-question="instructions" rows="3">${esc(q.instructions)}</textarea></label>${fields}<button id="remove-question" class="danger" type="button">Remove question</button></div>`;
 }
 export function expectationLabel(
   q: Question,
