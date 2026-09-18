@@ -241,6 +241,47 @@ export class Store {
     );
     return { run, bestRuns };
   }
+  /** Adopt reviewed examples atomically without replacing existing Jevals. */
+  adoptExamples(suites: Suite[]): { added: number; skipped: number } {
+    this.db.exec(
+      "CREATE TABLE IF NOT EXISTS example_seeds (name TEXT PRIMARY KEY, evaluation_id TEXT NOT NULL)",
+    );
+    this.db.exec("BEGIN IMMEDIATE");
+    let added = 0,
+      skipped = 0;
+    try {
+      for (const suite of suites) {
+        // Remember adoption, so renaming/editing an example never causes a duplicate later.
+        const marker = this.db
+          .prepare("SELECT evaluation_id FROM example_seeds WHERE name=?")
+          .get(suite.name);
+        const existing =
+          marker ||
+          this.db
+            .prepare(
+              "SELECT id AS evaluation_id FROM evaluations WHERE json_extract(json,'$.suite.name')=? LIMIT 1",
+            )
+            .get(suite.name);
+        if (existing) {
+          this.db
+            .prepare("INSERT OR IGNORE INTO example_seeds VALUES (?,?)")
+            .run(suite.name, String(existing.evaluation_id));
+          skipped++;
+        } else {
+          const evaluation = this.create(suite);
+          this.db
+            .prepare("INSERT INTO example_seeds VALUES (?,?)")
+            .run(suite.name, evaluation.id);
+          added++;
+        }
+      }
+      this.db.exec("COMMIT");
+      return { added, skipped };
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
   create(suite: Suite): Evaluation {
     suite = structuredClone(suite);
     const now = new Date().toISOString();

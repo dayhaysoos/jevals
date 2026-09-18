@@ -4,12 +4,12 @@
   "description": "Local evaluation workbench for TypeSafe Jev",
   "main": "index.js",
   "scripts": {
-    "dev": "tsx src/server.ts",
+    "dev": "tsx src/dev.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts",
     "build": "vite build && tsc -p tsconfig.build.json",
     "test:browser": "npm run build && node --import tsx test/workbench.browser.mjs",
-    "preview": "JEVALS_SERVE_BUILD=1 tsx src/server.ts",
+    "preview": "JEVALS_SERVE_BUILD=1 tsx src/dev.ts",
     "seed": "tsx src/seed-examples.ts",
     "prepack": "npm run build",
     "test:package": "node test/package.acceptance.mjs"

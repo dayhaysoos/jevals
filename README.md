@@ -50,7 +50,7 @@ Adds seven example evaluations covering sandwich classification, minifridges, pe
 
 Define a state schema to generate case forms, or enter plain text or JSON. Use **Glossary** in the sidebar for terminology.
 
-Definitions and run history are saved in your workspace’s `.data/jevals.sqlite`, separately from the installed package. Back up this folder to preserve your work; package upgrades do not replace it. Runs send case data to TypeSafe using your server-side API key and may incur cost. Results include correctness, probabilities, tokens, latency, estimated costs, and request traces.
+Definitions and run history are saved in your workspace’s `.data/jevals.sqlite`, separately from the installed package. Back up this folder to preserve your work; package upgrades do not replace it. On shutdown, the server gives accepted Runs up to five seconds to finish. Any unfinished Runs are marked failed on the next startup, preserving their saved answers and traces. Runs send case data to TypeSafe using your server-side API key and may incur cost. Results include correctness, probabilities, tokens, latency, estimated costs, and request traces.
 
 ## Development
 

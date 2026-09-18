@@ -25,7 +25,8 @@ mkdirSync(workspace);
 let child,
   logs = "",
   providerCalls = 0,
-  fail = false;
+  fail = false,
+  hold = false;
 const provider = createServer((req, res) => {
   let body = "";
   req.on("data", (data) => (body += data));
@@ -37,6 +38,7 @@ const provider = createServer((req, res) => {
       "quality",
       "sandwich",
     ]);
+    if (hold) return;
     res.setHeader("content-type", "application/json");
     if (fail) {
       res.writeHead(401);
@@ -325,9 +327,28 @@ try {
     (await (await fetch(url + "/api/evaluations")).json()).evaluations.length,
     8,
   );
+  fail = false;
+  hold = true;
+  const interrupted = await post("/api/runs", { evaluationId: created.id });
+  const interruptedId = (await interrupted.json()).id;
+  for (let i = 0; i < 100 && providerCalls < 3; i++) await delay(20);
+  assert.equal(providerCalls, 3);
+  const pending = await (
+    await fetch(url + "/api/runs/" + interruptedId)
+  ).json();
+  assert.equal(pending.run.status, "running");
+  const exited = once(child, "exit");
+  child.kill("SIGKILL");
+  await exited;
+  await start(port);
+  const recovered = await (
+    await fetch(url + "/api/runs/" + interruptedId)
+  ).json();
+  assert.deepEqual(recovered.run, { ...pending.run, status: "failed" });
+  assert.equal(recovered.outcome, "failed");
   assert.equal(existsSync(join(install, "node_modules/jevals/.data")), false);
   console.log(
-    `Packed install acceptance passed: ${paths.length} allowlisted files, no development dependencies, workspace .env, repeatable seeds, built UI/fonts, missing key/occupied port/provider failure, mixed run, persistent snapshots.`,
+    `Packed install acceptance passed: ${paths.length} allowlisted files, no development dependencies, workspace .env, repeatable seeds, built UI/fonts, missing key/occupied port/provider failure, mixed run, persistent snapshots, forced-termination recovery.`,
   );
 } finally {
   await stop();
