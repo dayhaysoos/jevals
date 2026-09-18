@@ -10,10 +10,10 @@ A local TypeScript workbench for experimenting with and evaluating TypeSafe Jev 
 Developers editing questions and criteria, trying reviewed examples, inspecting requests, and comparing saved results. The first user is Nick working locally.
 
 ## Capabilities and Constraints
-The current slice supports Noul, Choice and Score, including mixed-question Jevals. Store editable cases and immutable runs in SQLite. Capture probabilities, expected boolean answers, accuracy/error metrics, request payloads, tokens, latency, and estimated cost. Surface the best comparable complete run and export JSON. API credentials belong on the server. Example labels use an explicit authored definition, not a universal sandwich taxonomy. No live-provider acceptance exists yet.
+The current slice supports Noul, Choice and Score, including mixed-question Jevals. Store editable cases and immutable runs in SQLite. Capture probabilities, expected boolean answers, accuracy/error metrics, request payloads, tokens, latency, and estimated cost. Surface the best comparable complete run and export JSON. API credentials belong on the server. Example labels use an explicit authored definition, not a universal sandwich taxonomy. One synthetic mixed-primitives live-provider smoke has passed; this is not broad accuracy validation.
 
 ## Stack
-TypeScript requested by the user. Express, Vite, Node SQLite, and the official TypeSafe SDK selected for the smallest local implementation. Git remains uninitialized and no npm publication is authorized by this build.
+TypeScript requested by the user. Express, Vite, Node SQLite, and the official TypeSafe SDK selected for the smallest local implementation. Git tracks the project and a private GitHub repo holds the review candidate. No npm publication has been performed.
 
 ## Brand Commitments
 User supplied Evalite as a workflow and setup reference. Familiar light developer UI is an implementation assumption; optional preference question remains unanswered.
@@ -26,11 +26,11 @@ The user requested an evaluation home and sidebar together, with WebMCP so brows
 
 ## Typed collections (authorized)
 
-Evaluations are collections of typed questions sharing case state and schema, rather than one primitive category. The name-only creation dialog leads to Definition, where Noul and Choice questions can be added and Score is visible but disabled. Expected answers and rationale are keyed by stable question ID. Noul and Choice questions execute together once per case and have separate metrics. WebMCP exposes question creation/update/removal and keyed case expectations. Migration preserves existing labels and run JSON. No live-provider acceptance is implied by simulated batching checks.
+Evaluations are collections of typed questions sharing case state and schema, rather than one primitive category. The name-only creation dialog leads to Definition, where Noul, Choice and Score questions can be added. Expected answers and rationale are keyed by stable question ID. Noul and Choice questions execute together once per case and have separate metrics. WebMCP exposes question creation/update/removal and keyed case expectations. Migration preserves existing labels and run JSON. No live-provider acceptance is implied by simulated batching checks.
 
 ## Noul foundation
 
-Question validation, provider question encoding, independent answer decoding, metrics and best-run eligibility share one question module; persistence and HTTP adapters decode historical snapshots separately. Valid sibling answers survive missing or invalid answers. Only fully successful runs qualify as best; incorrect judgments count as successful execution, not correct results. Derived outcomes distinguish partial success from full failure without rewriting historical snapshots. Resources are counted once per request. Choice is enabled; Score remains disabled.
+Question validation, provider question encoding, independent answer decoding, metrics and best-run eligibility share one question module; persistence and HTTP adapters decode historical snapshots separately. Valid sibling answers survive missing or invalid answers. Only fully successful runs qualify as best; incorrect judgments count as successful execution, not correct results. Derived outcomes distinguish partial success from full failure without rewriting historical snapshots. Resources are counted once per request. Noul, Choice and Score are enabled.
 
 ## Workspace and run foundation
 

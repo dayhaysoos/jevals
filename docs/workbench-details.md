@@ -85,7 +85,7 @@ npm run build
 npm run preview
 ```
 
-`dev` uses Vite middleware. `preview` serves the built browser bundle with the same local API. Both bind to localhost; this is a local workbench, not a deployment package. Hosted sharing and authentication remain future work. Existing `accuracy(results)` remains exported from `index.js` for package compatibility; no npm release was published.
+`dev` uses Vite middleware. `preview` serves the built browser bundle with the same local API. Both bind to localhost. The packaged CLI serves built assets; hosted deployment is outside scope. Hosted sharing and authentication remain future work. Existing `accuracy(results)` remains exported from `index.js` for package compatibility; no npm release was published.
 
 ## Typed question collections
 
@@ -127,7 +127,7 @@ Score uses 2–10 ordered nonempty text descriptions. Level positions start at z
 
 Cases select an expected level and may set a tolerance in level units (default 0.5; zero requires an exact score). WebMCP can also provide fractional numeric expectations. Values must lie within the rubric, and tolerance must be finite, nonnegative and no larger than its span. Results show score, confidence, distribution, absolute error, and within/outside-tolerance verdicts. Mean absolute error averages valid answers; pass rate is unavailable until every case succeeds. Score does not use categorical Brier error. Best comparable fully successful runs rank by lowest mean absolute error, then highest pass rate, then newest. Score rubric descriptions/order and explicit tolerance join the comparison key.
 
-The browser acceptance fixture exercises Noul + Choice + Score in one request per case using a simulated provider. Score has not yet been verified against the live provider in this workbench. Reference: [Score documentation](https://docs.typesafe.ai/primitives/score).
+The browser acceptance fixture exercises Noul + Choice + Score in one request per case using a simulated provider. One synthetic mixed-primitives live smoke also returned valid Score answers; see [release evidence](release-evidence.md) for its limits. Reference: [Score documentation](https://docs.typesafe.ai/primitives/score).
 
 ## Question authoring
 

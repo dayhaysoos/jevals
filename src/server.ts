@@ -1,8 +1,10 @@
+import { lockDatabase } from "./database-lock.js";
 import "dotenv/config";
 import express from "express";
 import { Store } from "./store.js";
 import { mkdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { TypeSafeClient } from "@typesafe-ai/sdk";
 import {
   metrics,
@@ -12,8 +14,10 @@ import {
 } from "./questions.js";
 import { decodeSuite, encodeSuite, encodeRun } from "./snapshots.js";
 import { RunExecutor, RunRequestError } from "./run-executor.js";
-mkdirSync(".data", { recursive: true });
-const store = new Store(process.env.JEVALS_DB ?? ".data/jevals.sqlite");
+const database = process.env.JEVALS_DB ?? ".data/jevals.sqlite";
+mkdirSync(dirname(database), { recursive: true });
+const releaseDatabase = lockDatabase(database);
+const store = new Store(database);
 const app = express();
 app.use(express.json({ limit: "2mb" }));
 app.get("/api/evaluations", (_req, res) =>
@@ -223,11 +227,14 @@ app.get("/api/runs/:id/export", (req, res) => {
   });
 });
 if (process.env.JEVALS_SERVE_BUILD === "1") {
-  app.use(express.static("dist"));
+  const ui = fileURLToPath(new URL("../dist/", import.meta.url));
+  app.use(express.static(ui));
   app.get(/^\/api\//, (_req, res) =>
     res.status(404).json({ error: "API endpoint not found." }),
   );
-  app.get(/.*/, (_req, res) => res.sendFile(resolve("dist/index.html")));
+  app.get(/.*/, (_req, res) =>
+    res.sendFile(fileURLToPath(new URL("../dist/index.html", import.meta.url))),
+  );
 } else {
   const { createServer } = await import("vite");
   const vite = await createServer({
@@ -237,6 +244,32 @@ if (process.env.JEVALS_SERVE_BUILD === "1") {
   app.use(vite.middlewares);
 }
 const port = Number(process.env.PORT ?? 4317);
-app.listen(port, "127.0.0.1", () =>
-  console.log(`jevals → http://localhost:${port}`),
-);
+if (!Number.isInteger(port) || port < 0 || port > 65535)
+  throw Error("PORT must be a whole number from 0 to 65535.");
+export const server = app.listen(port, "127.0.0.1");
+server.once("listening", () => {
+  const actualPort = (server.address() as { port: number }).port;
+  console.log(`jevals → http://localhost:${actualPort}`);
+  if (!process.env.TYPESAFE_API_KEY)
+    console.log(
+      "Create and edit without a key. To run evaluations, set TYPESAFE_API_KEY in your workspace .env and restart.",
+    );
+});
+server.on("error", (error: NodeJS.ErrnoException) => {
+  console.error(
+    error.code === "EADDRINUSE"
+      ? `Port ${port} is already in use. Try jevals --port ${port + 1 > 65535 ? 4317 : port + 1}, or stop the other server.`
+      : `Could not start the local server (${error.code ?? "unknown error"}).`,
+  );
+  store.db.close();
+  releaseDatabase();
+  process.exitCode = 1;
+});
+for (const signal of ["SIGINT", "SIGTERM"] as const)
+  process.once(signal, () => {
+    server.close(() => {
+      store.db.close();
+      process.exit(0);
+    });
+    setTimeout(() => process.exit(0), 5000).unref();
+  });

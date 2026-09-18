@@ -6,31 +6,37 @@ Supports **Noul** (yes/no), **Choice** (select an option), **Score** (an ordered
 
 ## Get started
 
-Requires Node.js 22.13 or newer. Run these commands from the project directory:
+Requires Node.js 22.13 or newer. After the first npm release:
 
 ```sh
-npm install
-cp .env.example .env
+npx jevals
 ```
 
-Add your TypeSafe API key to `.env`:
+The command starts a local server and opens the workbench in your browser. Create a `.env` file in your workspace to enable runs:
 
 ```dotenv
 TYPESAFE_API_KEY=your_api_key
 ```
 
-Start the app:
+You can create and edit evaluations without a key. Restart after changing it.
 
 ```sh
-npm run dev
+npx jevals --dir ./my-evals   # Choose a workspace
+npx jevals --port 4318       # Choose another port
+npx jevals --no-open         # Print the URL without opening a browser
 ```
 
-Open [localhost:4317](http://localhost:4317). You can create and edit evaluations without an API key; running them requires one. Restart the server after changing the key.
+For a project-local installation:
+
+```sh
+npm install --save-dev jevals
+npx jevals
+```
 
 ## Try the examples
 
 ```sh
-npm run seed
+npx jevals seed
 ```
 
 Adds seven example evaluations covering sandwich classification, minifridges, personal information, distributed systems, bug severity, and support-ticket quality. Re-running the command preserves existing evaluations and edits. No API requests are made during seeding.
@@ -44,19 +50,31 @@ Adds seven example evaluations covering sandwich classification, minifridges, pe
 
 Define a state schema to generate case forms, or enter plain text or JSON. Use **Glossary** in the sidebar for terminology.
 
-Definitions and run history are saved locally in `.data/jevals.sqlite`. Runs send case data to TypeSafe using your server-side API key and may incur cost. Results include correctness, probabilities, tokens, latency, estimated costs, and request traces.
+Definitions and run history are saved in your workspace’s `.data/jevals.sqlite`, separately from the installed package. Back up this folder to preserve your work; package upgrades do not replace it. Runs send case data to TypeSafe using your server-side API key and may incur cost. Results include correctness, probabilities, tokens, latency, estimated costs, and request traces.
 
 ## Development
+
+From a source checkout:
+
+```sh
+npm install
+cp .env.example .env
+npm run seed
+npm run dev
+```
+
+Open [localhost:4317](http://localhost:4317).
 
 ```sh
 npm run typecheck
 npm test
 npm run test:browser
+npm run test:package
 ```
 
-Browser checks require Google Chrome with WebMCP support and use simulated requests. WebMCP lets compatible browser agents create, edit, run, and inspect evaluations.
+Browser checks require Google Chrome with WebMCP support. Tests use simulated requests and isolated databases. The package check installs the actual npm artifact without development dependencies and verifies startup, seeding, runs, errors, and persistence.
 
-This workbench currently runs from a source checkout; the install-and-run npm CLI is not packaged yet. Not affiliated with TypeSafe.
+WebMCP lets compatible browser agents create, edit, run, and inspect evaluations. Not affiliated with TypeSafe. This release candidate has not been published to npm yet.
 
 ## Agent skill
 

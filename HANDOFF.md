@@ -1,3 +1,7 @@
+## Release preparation (September 18, 2026)
+
+Git baseline and prepare-release branch now exist. The private GitHub repo is dayhaysoos/jevals. Version 0.1.0 is a review candidate, not an npm publication. CLI/built assets/seed/agent skill are packaged; detailed evidence and limitations are in docs/release-evidence.md. One synthetic live mixed request passed for all three primitives. These current facts supersede older uninitialized-Git, disabled-Score and simulation-only notes below. Runtime user data and keys remain ignored and excluded from package contents.
+
 ## Ranking and disclosure deepening (September 18, 2026)
 
 `src/run-ranking.ts` shares metric precedence/eligibility between in-memory ranking and parameterized SQLite plans. Ties use creation timestamp then stable run ID descending (an intentional replacement for input/insertion ordering). Queries remain scoped to evaluation and comparable dataset and read summaries, not raw traces. No cache migration is required. `src/disclosures.ts` replaces three independent disclosure flags and repeated close/render/focus lifecycles; creation, glossary and responsive About use native close/toggle events. It owns deferred renders, safe focus restoration and queued close/reopen protection.

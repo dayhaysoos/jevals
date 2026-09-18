@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "lib", "noEmit": false },
+  "include": ["src/server.ts", "src/seed-examples.ts"],
+  "exclude": ["test", "lib", "dist"]
+}
