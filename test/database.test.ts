@@ -126,3 +126,18 @@ test("failed initialization and failed recovery release their database ownership
     }
   }
 });
+
+test("dangling database symlinks claim the target before creating the database", () => {
+  const f = fixture();
+  const alias = join(f.dir, "alias.sqlite");
+  symlinkSync(f.path, alias);
+  const first = openDatabase(alias, "seed");
+  try {
+    assert.throws(() => openDatabase(f.path, "server"), /already using/);
+    assert.throws(() => openDatabase(alias, "seed"), /already using/);
+    assert.equal(existsSync(alias + ".lock"), false);
+  } finally {
+    first.close();
+    f.cleanup();
+  }
+});

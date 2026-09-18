@@ -477,7 +477,7 @@ async function changeArchive(
 }
 function schemaEditor() {
   const fields = workspace.suite.stateSchema ?? [];
-  return `<details id="schema-editor" ${schemaOpen ? "open" : ""}><summary>State schema · ${fields.length} fields</summary><p class="hint">Define fields once for every case. Defaults initialize new cases. Renaming or removing fields keeps existing JSON values.</p>${fields.map((f, i) => `<div class="schema-field"><div class="pair"><label>Field key<input data-field="key" data-field-index="${i}" value="${esc(f.key)}"></label><label>Label<input data-field="label" data-field-index="${i}" value="${esc(f.label)}"></label></div><div class="pair"><label>Type<select data-field="type" data-field-index="${i}"><option value="text" ${f.type === "text" ? "selected" : ""}>Text</option><option value="long-text" ${f.type === "long-text" ? "selected" : ""}>Long text</option></select></label><label class="checkbox-label"><input type="checkbox" data-field="required" data-field-index="${i}" ${f.required ? "checked" : ""}> Required</label></div><label>Default for new cases<textarea data-field="defaultValue" data-field-index="${i}" rows="2">${esc(f.defaultValue)}</textarea></label><button data-remove-field="${i}">Remove field</button></div>`).join("")}<button id="add-field">Add state field</button><p class="hint">With no schema, cases can use plain text or raw JSON.</p></details>`;
+  return `<details id="schema-editor" ${schemaOpen ? "open" : ""}><summary>State schema · ${fields.length} fields</summary><p class="hint">Define fields once for every case. Defaults initialize new cases. Renaming or removing fields keeps existing JSON values.</p>${fields.map((f, i) => `<div class="schema-field" data-schema-key="${esc(f.key)}"><div class="pair"><label>Field key<input data-field="key" data-field-index="${i}" value="${esc(f.key)}"></label><label>Label<input data-field="label" data-field-index="${i}" value="${esc(f.label)}"></label></div><div class="pair"><label>Type<select data-field="type" data-field-index="${i}"><option value="text" ${f.type === "text" ? "selected" : ""}>Text</option><option value="long-text" ${f.type === "long-text" ? "selected" : ""}>Long text</option></select></label><label class="checkbox-label"><input type="checkbox" data-field="required" data-field-index="${i}" ${f.required ? "checked" : ""}> Required</label></div><label>Default for new cases<textarea data-field="defaultValue" data-field-index="${i}" rows="2">${esc(f.defaultValue)}</textarea></label><button data-remove-field="${i}">Remove field</button></div>`).join("")}<button id="add-field">Add state field</button><p class="hint">With no schema, cases can use plain text or raw JSON.</p></details>`;
 }
 function caseStateEditor(state: string) {
   const fields = workspace.suite.stateSchema ?? [];
@@ -490,7 +490,7 @@ function caseStateEditor(state: string) {
       (f) => object[f.key] === undefined || typeof object[f.key] === "string",
     );
   const form = stateView === "form" && valid;
-  return `<div class="section-title"><h2>State</h2><div class="view-switch" aria-label="State editor view"><button data-state-view="form" aria-pressed="${stateView === "form"}">Form</button><button data-state-view="json" aria-pressed="${stateView === "json"}">JSON</button></div></div>${form ? fields.map((f, i) => `<label>${esc(f.label)} ${f.required ? "<small>Required</small>" : "<small>Optional</small>"}${f.type === "long-text" ? `<textarea data-state-field="${i}" rows="4">${esc(object![f.key] ?? "")}</textarea>` : `<input data-state-field="${i}" value="${esc(object![f.key] ?? "")}">`}</label>`).join("") : `${stateView === "form" ? '<p class="hint">This state cannot be displayed as a text-field form. Its original content is preserved below. Edit it into a JSON object with text values to use the form.</p>' : ""}<label>State JSON<textarea class="code" data-case="state" rows="8">${esc(state)}</textarea></label>`}<p id="state-errors" class="schema-errors" role="status">${esc(stateErrors({ ...workspace.suite, cases: [workspace.suite.cases[workspace.selected]] }).join(" "))}</p>${form ? `<details><summary>JSON preview · exact state sent to Jev</summary><pre id="state-preview">${esc(state)}</pre></details>` : ""}`;
+  return `<div class="section-title"><h2>State</h2><div class="view-switch" aria-label="State editor view"><button data-state-view="form" aria-pressed="${stateView === "form"}">Form</button><button data-state-view="json" aria-pressed="${stateView === "json"}">JSON</button></div></div>${form ? fields.map((f, i) => `<label>${esc(f.label)} ${f.required ? "<small>Required</small>" : "<small>Optional</small>"}${f.type === "long-text" ? `<textarea data-state-field="${i}" data-state-key="${esc(f.key)}" rows="4">${esc(object![f.key] ?? "")}</textarea>` : `<input data-state-field="${i}" data-state-key="${esc(f.key)}" value="${esc(object![f.key] ?? "")}">`}</label>`).join("") : `${stateView === "form" ? '<p class="hint">This state cannot be displayed as a text-field form. Its original content is preserved below. Edit it into a JSON object with text values to use the form.</p>' : ""}<label>State JSON<textarea class="code" data-case="state" rows="8">${esc(state)}</textarea></label>`}<p id="state-errors" class="schema-errors" role="status">${esc(stateErrors({ ...workspace.suite, cases: [workspace.suite.cases[workspace.selected]] }).join(" "))}</p>${form ? `<details><summary>JSON preview · exact state sent to Jev</summary><pre id="state-preview">${esc(state)}</pre></details>` : ""}`;
 }
 function bindCaseState() {
   const caseId = workspace.suite.cases[workspace.selected]?.id;
@@ -515,9 +515,17 @@ function bindCaseState() {
         }
         const c = workspace.suite.cases.find((c) => c.id === caseId);
         if (!c) return;
-        const state = stateObject(c.state)!;
-        const field =
-          workspace.suite.stateSchema![Number(el.dataset.stateField)];
+        const state = stateObject(c.state);
+        const field = workspace.suite.stateSchema?.find(
+          (f) => f.key === el.dataset.stateKey,
+        );
+        if (!state || !field) {
+          notify(
+            "The state schema changed. Refresh the form before editing this field.",
+            true,
+          );
+          return;
+        }
         state[field.key] = el.value;
         c.state = JSON.stringify(state, null, 2);
         markDirty();
@@ -583,7 +591,7 @@ function render() {
 
  ${schemaEditor()}<div class="archive-action"><h2>${workspace.archivedAt ? "Archived evaluation" : "Archive evaluation"}</h2><p class="hint">${workspace.archivedAt ? "Restore to show this evaluation in the active list and run its questions again." : "Hide this evaluation from the active list. Its cases and run history are preserved. Save changes before archiving."}</p><button id="archive-evaluation" type="button" ${workspace.dirty ? "disabled" : ""}>${workspace.archivedAt ? "Restore evaluation" : "Archive evaluation"}</button></div></div><div class="cases-panel">
  ${q ? `<label>Question to label<select id="case-question">${workspace.suite.questions!.map((item) => `<option value="${esc(item.id)}" ${item.id === q.id ? "selected" : ""}>${esc(item.name)} · ${esc(item.type)}</option>`).join("")}</select></label>` : '<p class="hint">Add questions in Definition to label your cases.</p>'}<div class="section-title"><h2>Cases <span>${workspace.suite.cases.length}</span></h2><button id="add">Add case</button></div><nav class="case-list" aria-label="Evaluation cases">${workspace.suite.cases.map((item, i) => `<button class="case ${i === workspace.selected ? "selected" : ""}" data-index="${i}"><span>${esc(item.name)}</span><small>${q && item.expectations?.[q.id] ? esc(expectationLabel(q, item.expectations[q.id])) : "Needs expected answer"}</small></button>`).join("")}</nav>
- ${c ? `<div class="case-editor"><label>Case name<input data-case="name" value="${esc(c.name)}"></label><div id="state-panel">${caseStateEditor(c.state)}</div>${q ? `<label>Expected answer<select data-case="expected">${expectationOptions(q, expectation)}</select></label>${q.type === "score" ? `<label>Tolerance <span class="hint">Optional · default 0.5 levels</span><input data-case="tolerance" type="number" min="0" max="${q.criteria.length - 1}" step="0.1" value="${esc(expectation?.tolerance)}" ${!expectation ? "disabled" : ""}></label>` : ""}<label>Why this answer?<textarea data-case="rationale" rows="2" ${!expectation ? "disabled" : ""}>${esc(expectation?.rationale)}</textarea></label>` : ""}<button id="remove">Remove case</button></div>` : `<p class="hint">No cases yet. Add a case to enter state and an expected answer.</p>`}</div></section>
+ ${c ? `<div class="case-editor"><label>Case name<input data-case="name" value="${esc(c.name)}"></label><div id="state-panel">${caseStateEditor(c.state)}</div>${q ? `<label>Expected answer${q.type === "score" ? `<input data-case="expected" type="number" min="0" max="${q.criteria.length - 1}" step="any" value="${esc(expectation?.value)}"><span class="hint">${q.criteria.map((level, i) => `${i}: ${esc(level)}`).join(" · ")}</span>` : `<select data-case="expected">${expectationOptions(q, expectation)}</select>`}</label>${q.type === "score" ? `<label>Tolerance <span class="hint">Optional · default 0.5 levels</span><input data-case="tolerance" type="number" min="0" max="${q.criteria.length - 1}" step="0.1" value="${esc(expectation?.tolerance)}" ${!expectation ? "disabled" : ""}></label>` : ""}<label>Why this answer?<textarea data-case="rationale" rows="2" ${!expectation ? "disabled" : ""}>${esc(expectation?.rationale)}</textarea></label>` : ""}<button id="remove">Remove case</button></div>` : `<p class="hint">No cases yet. Add a case to enter state and an expected answer.</p>`}</div></section>
  <section class="results"><div class="results-panel"><div class="section-title"><h2>Run results</h2>${run ? `<a class="button" href="/api/runs/${run.id}/export" download>Export JSON</a>` : ""}</div>
  ${run ? `<label>Result question<select id="result-question">${run.suite.questions.map((item) => `<option value="${esc(item.id)}" ${item.id === (run.suite.questions.find((x) => x.id === selectedQuestion)?.id ?? run.suite.questions[0]?.id) ? "selected" : ""}>${esc(item.name)} · ${esc(item.type)}</option>`).join("")}</select></label><p class="hint">Correctness metrics apply to the selected question. Tokens, latency and cost cover the whole request.</p>` : ""}${!run ? `<div class="empty"><h3>Your first run starts here.</h3><p>${workspace.suite.cases.length ? "Review your cases and expected answers, then run the evaluation." : "Start with a question in Definition, then add examples in Cases."}</p><p>Noul judges yes/no; Choice selects an option; Score rates against ordered levels. Correctness comes from your answer key.</p></div>` : `<div class="run-caption"><strong>${esc(run.suite.name)}</strong><span>${new Date(run.createdAt).toLocaleString()} · ${runOutcomeMarkup(runOutcome(originalRun!))}</span></div>${runOutcome(originalRun!) === "partial" ? '<p class="run-outcome-note">Some answers failed. Valid answers are available below; this run cannot qualify as best.</p>' : runOutcome(originalRun!) === "failed" ? '<p class="run-outcome-note">No valid answers are available. Open a case trace to inspect the error.</p>' : ""}<dl class="summary"><div><dt>${resultQuestion?.type === "score" ? "Within tolerance" : "Correct"}</dt><dd>${m!.correct} / ${m!.total}</dd></div><div><dt>${resultQuestion?.type === "score" ? "Pass rate" : "Accuracy"}</dt><dd>${m!.accuracy === null ? "Incomplete" : `${(m!.accuracy * 100).toFixed(0)}%`}</dd></div><div><dt>${resultQuestion?.type === "score" ? "Mean absolute error ↓" : resultQuestion?.type === "choice" ? "Multiclass Brier ↓" : "Brier error ↓"}</dt><dd>${(resultQuestion?.type === "score" ? m!.meanAbsoluteError : m!.brier)?.toFixed(3) ?? "—"}</dd></div></dl><p class="run-meta">${m!.inputTokens} input / ${m!.outputTokens} output tokens · ${(m!.latencyMs / 1000).toFixed(2)}s summed request time · ${money(m!.cost)} estimated</p>${metricDetails(resultQuestion, m!)}<div class="table-wrap"><table><thead><tr>${resultHeaders(resultQuestion)}</tr></thead><tbody>${resultRows.map((row, i) => resultRow(row, i, resultQuestion)).join("")}</tbody></table></div><div id="trace"></div><details><summary>Saved question and cases</summary><pre>${esc(JSON.stringify(run.suite, null, 2))}</pre></details>`}
  </div><div class="history"><h2 id="history-title" tabindex="-1">Run history</h2><p class="hint">${resultQuestion?.type === "score" ? "Best is ranked by lower mean absolute error, then pass rate," : "Best is ranked by accuracy, then lower Brier error,"} on the selected run’s exact case set. Incomplete runs are excluded.</p>${workspace.runs.length ? workspace.runs.map((r) => `<button class="history-row ${r.id === run?.id ? "selected" : ""}" data-run="${r.id}"><span><strong>${esc(r.name)}</strong><small>${new Date(r.createdAt).toLocaleString()} · ${esc(r.model)} · ${runOutcomeMarkup(r.outcome)}</small></span><span>${r.id === best?.id ? '<b class="best">Best on these cases</b>' : ""} ${r.questionMetrics[selectedQuestion]?.accuracy == null ? "—" : `${(r.questionMetrics[selectedQuestion]?.accuracy! * 100).toFixed(0)}%`}</span></button>`).join("") : '<p class="hint">Saved runs will appear here.</p>'}${best && !workspace.runs.some((r) => r.id === best.id) ? `<button class="history-row" data-run="${best.id}"><span><strong>${esc(best.name)}</strong><small>${new Date(best.createdAt).toLocaleString()} · ${esc(best.model)}</small></span><span><b class="best">Best on these cases</b> ${(best.questionMetrics[selectedQuestion].accuracy! * 100).toFixed(0)}%</span></button>` : ""}${workspace.runCursor !== null ? `<button id="load-older-runs" type="button" aria-busy="${workspace.isLoadingHistory}" ${workspace.isLoadingHistory ? "disabled" : ""}>Load older runs</button>` : ""}</div></section></div><footer>Local by default · Model probabilities are not proof of correctness · Example answer keys use an authored definition</footer></main></div>`;
@@ -896,14 +904,21 @@ function render() {
     >("[data-field]")
     .forEach((el) => {
       el.addEventListener("input", () => {
-        const field =
-          workspace.suite.stateSchema![Number(el.dataset.fieldIndex)];
+        const container = el.closest<HTMLElement>("[data-schema-key]");
+        const field = workspace.suite.stateSchema?.find(
+          (f) => f.key === container?.dataset.schemaKey,
+        );
+        if (!field) {
+          notify("This schema field changed. Refresh before editing it.", true);
+          return;
+        }
         Object.assign(field, {
           [el.dataset.field!]:
             el.dataset.field === "required"
               ? (el as HTMLInputElement).checked
               : el.value,
         });
+        if (container) container.dataset.schemaKey = field.key;
         markDirty();
         refreshCaseState();
       });
@@ -927,7 +942,12 @@ function render() {
   root.querySelectorAll<HTMLElement>("[data-remove-field]").forEach(
     (el) =>
       (el.onclick = () => {
-        workspace.suite.stateSchema!.splice(Number(el.dataset.removeField), 1);
+        const key =
+          el.closest<HTMLElement>("[data-schema-key]")?.dataset.schemaKey;
+        const index =
+          workspace.suite.stateSchema?.findIndex((f) => f.key === key) ?? -1;
+        if (index < 0) return;
+        workspace.suite.stateSchema!.splice(index, 1);
         schemaOpen = true;
         markDirty();
         render();
@@ -1171,6 +1191,40 @@ function render() {
       updateSaveState();
     }
   };
+  if (q) {
+    // A clean focused control can outlive an externally replaced question.
+    // Check before target handlers run; advance after local edits commit.
+    let mountedQuestion = JSON.stringify(q);
+    const currentQuestion = () =>
+      workspace.suite.questions.find((item) => item.id === q.id);
+    root
+      .querySelectorAll<HTMLElement>(
+        "[data-question],[data-score-level],[data-score-up],[data-score-down],[data-score-remove],[data-choice-label],[data-choice-description],[data-remove-choice],#add-score-level,#add-choice-option,#remove-question,[data-case=expected],[data-case=tolerance],[data-case=rationale]",
+      )
+      .forEach((el) => {
+        for (const event of ["input", "change", "click"]) {
+          el.addEventListener(
+            event,
+            (e) => {
+              if (JSON.stringify(currentQuestion()) !== mountedQuestion) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                notify(
+                  "This question changed. Refresh its controls before editing.",
+                  true,
+                );
+                disclosures.defer();
+                return;
+              }
+            },
+            { capture: true },
+          );
+          el.addEventListener(event, () => {
+            mountedQuestion = JSON.stringify(currentQuestion());
+          });
+        }
+      });
+  }
 }
 async function refresh() {
   let list: { evaluations: EvaluationSummary[]; configured: boolean };
@@ -1205,6 +1259,8 @@ window.addEventListener("popstate", () => {
 setInterval(async () => {
   if (
     !evaluations.some((e) => e.latestRun?.status === "running") &&
+    workspace.run?.status !== "running" &&
+    !workspace.runs.some((run) => run.status === "running") &&
     !disclosures.pending
   )
     return;

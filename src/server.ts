@@ -52,6 +52,44 @@ export async function startWorkbench(
     })());
   try {
     const app = express();
+    // Loopback binding alone does not stop hostile DNS names resolving to loopback.
+    app.use((req, res, next) => {
+      const localHosts = new Set(["localhost", "127.0.0.1"]);
+      if (!localHosts.has(req.hostname)) {
+        res
+          .status(403)
+          .json({
+            error: "Use the local Jevals URL to access this workbench.",
+          });
+        return;
+      }
+      if (req.headers.origin) {
+        try {
+          const origin = new URL(req.headers.origin);
+          const address = server?.address();
+          const actualPort =
+            address && typeof address !== "string" ? address.port : port;
+          if (
+            origin.protocol !== "http:" ||
+            !localHosts.has(origin.hostname) ||
+            Number(origin.port || 80) !== actualPort
+          )
+            throw Error();
+        } catch {
+          res
+            .status(403)
+            .json({
+              error: "Requests must originate from this local workbench.",
+            });
+          return;
+        }
+      }
+      if (req.headers["sec-fetch-site"] === "cross-site") {
+        res.status(403).json({ error: "Cross-site requests are not allowed." });
+        return;
+      }
+      next();
+    });
     app.use(express.json({ limit: "2mb" }));
     app.get("/api/evaluations", (_req, res) =>
       res.json({

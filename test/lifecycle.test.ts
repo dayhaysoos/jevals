@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createServer } from "node:http";
+import { createServer, request } from "node:http";
 import { mkdtempSync, rmSync, existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -160,6 +160,56 @@ test("example adoption failure rolls back the complete seed operation and releas
     inspect.close();
     assert.deepEqual(seedWorkspace(f.database), { added: 7, skipped: 0 });
   } finally {
+    f.cleanup();
+  }
+});
+
+test("local workbench rejects hostile hosts and cross-site origins before reading or writing", async () => {
+  const f = fixture();
+  const workbench = await startWorkbench({
+    database: f.database,
+    port: 0,
+    built: true,
+  });
+  try {
+    const hostile: Record<string, string>[] = [
+      { Host: "attacker.example" },
+      { Origin: "https://attacker.example" },
+      { Origin: "null" },
+      { "Sec-Fetch-Site": "cross-site" },
+    ];
+    for (const headers of hostile) {
+      for (const method of ["GET", "POST"]) {
+        const status = await new Promise<number | undefined>(
+          (resolve, reject) => {
+            const req = request(
+              workbench.url + "/api/evaluations",
+              {
+                method,
+                headers: { ...headers, "Content-Type": "application/json" },
+              },
+              (res) => {
+                res.resume();
+                resolve(res.statusCode);
+              },
+            );
+            req.on("error", reject);
+            req.end(method === "POST" ? JSON.stringify(seed) : undefined);
+          },
+        );
+        assert.equal(status, 403);
+      }
+    }
+    assert.equal(
+      (
+        await fetch(workbench.url + "/api/evaluations", {
+          headers: { Origin: workbench.url },
+        })
+      ).status,
+      200,
+    );
+  } finally {
+    await workbench.close();
     f.cleanup();
   }
 });

@@ -6,7 +6,8 @@ The npm package now ships an executable CLI, compiled server, built browser UI/f
 
 ## Local evidence
 
-- TypeScript check, 65 unit/integration checks and native WebMCP/browser acceptance use isolated databases and simulated providers.
+- TypeScript check, 69 unit/integration checks and native WebMCP/browser acceptance use isolated databases and simulated providers.
+- Full-codebase review/fix loops ended with zero actionable findings; see `docs/code-review-loop.md`. Ownership recovery is serialized by a kernel-managed SQLite transaction, and untrusted hosts/origins are rejected before accessing the workbench. Browser regressions cover fractional expected scores and focused controls surviving external updates.
 - Shared startup owns readiness, rollback and shutdown without import side effects. Tests cover occupied-port cleanup including development middleware, draining an accepted Run before closing storage, workspace configuration without global mutation, and atomic rollback of failed example adoption.
 - `npm run test:package` runs `npm pack`, reviews the allowlisted artifact, installs it into a clean directory with production dependencies only, and invokes the installed executable and npm exec. It checks repeatable seeding, workspace .env discovery, built UI/fonts, missing-key and port-conflict errors, a mixed Noul/Choice/Score request, provider failure and persisted snapshots after restart, and recovery of an unfinished Run after forced termination.
 - Production dependency audit reports no known vulnerabilities at preparation time.
