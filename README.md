@@ -6,7 +6,7 @@ Supports **Noul** (yes/no), **Choice** (select an option), **Score** (an ordered
 
 ## Get started
 
-Requires Node.js 22.13 or newer. After the first npm release:
+Requires Node.js 22.13 or newer.
 
 ```sh
 npx jevals
@@ -74,7 +74,7 @@ npm run test:package
 
 Browser checks require Google Chrome with WebMCP support. Tests use simulated requests and isolated databases. The package check installs the actual npm artifact without development dependencies and verifies startup, seeding, runs, errors, and persistence.
 
-WebMCP lets compatible browser agents create, edit, run, and inspect evaluations. Not affiliated with TypeSafe. This release candidate has not been published to npm yet.
+WebMCP lets compatible browser agents create, edit, run, and inspect evaluations. Not affiliated with TypeSafe.
 
 ## Agent skill
 
