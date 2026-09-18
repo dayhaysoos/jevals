@@ -2151,6 +2151,37 @@ try {
     JSON.parse(await p.locator("#state-preview").textContent()).definition,
     "Bread with filling",
   );
+  // Creation must not reject or rewrite unrelated, temporarily incomplete draft fields.
+  await p.setViewportSize({ width: 1440, height: 950 });
+  await p.locator('[data-case="name"]').fill("");
+  await p.getByRole("link", { name: "Definition", exact: true }).click();
+  await p.locator('[data-suite="name"]').fill("");
+  await p.locator('[data-suite="model"]').fill("");
+  await p.locator("#add-question").click();
+  await p
+    .locator('#authoring-dialog [name="name"]')
+    .fill("Another valid question");
+  await p
+    .locator('#authoring-dialog [name="instructions"]')
+    .fill("Does the message ask for a reply?");
+  await p.locator('#authoring-dialog button[type="submit"]').click();
+  await p.waitForSelector("#authoring-dialog", { state: "detached" });
+  assert.equal(await p.locator('[data-suite="name"]').inputValue(), "");
+  assert.equal(await p.locator('[data-suite="model"]').inputValue(), "");
+  assert.equal(await p.locator('[data-index="0"] span').textContent(), "");
+  assert.equal(await p.locator("[data-question-id]").count(), 2);
+  await p.getByRole("link", { name: "Cases", exact: true }).click();
+  await p.locator("#add").click();
+  await p.locator('#authoring-dialog [name="name"]').fill("Another valid case");
+  await p
+    .locator('#authoring-dialog [name="state_1"]')
+    .fill("Cheese between bread slices");
+  await p.locator('#authoring-dialog button[type="submit"]').click();
+  await p.waitForSelector("#authoring-dialog", { state: "detached" });
+  assert.equal(await p.locator("[data-index]").count(), 2);
+  assert.equal(await p.locator('[data-index="0"] span').textContent(), "");
+  assert.equal(await p.locator('[data-suite="name"]').inputValue(), "");
+  assert.equal(await p.locator('[data-suite="model"]').inputValue(), "");
   // Shared modal dismissal: trap focus, preserve inside gestures, restore the trigger.
   await p.setViewportSize({ width: 1440, height: 950 });
   for (const [trigger, dialogId] of [

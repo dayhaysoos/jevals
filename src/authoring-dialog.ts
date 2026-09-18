@@ -2,6 +2,7 @@ import type { Suite, Question, Case } from "./types.js";
 import { esc, sdkLabel } from "./question-presentation.js";
 import { stateErrors } from "./state-schema.js";
 import { validateSuite } from "./questions.js";
+import { upsertQuestion } from "./question-authoring.js";
 
 /** Owns isolated creation drafts. Cancelling never changes the evaluation. */
 export function authoringDialog(
@@ -129,7 +130,8 @@ export function authoringDialog(
             no: get("no"),
             threshold: Number(get("threshold")),
           };
-        validateSuite({ ...suite, questions: [...suite.questions, value] });
+        // Reuse the question transaction without validating unrelated draft fields.
+        upsertQuestion(structuredClone(suite), value);
       } else {
         value = {
           id,
@@ -162,8 +164,16 @@ export function authoringDialog(
                 : {}),
             };
         });
-        const next = { ...suite, cases: [...suite.cases, c] };
-        validateSuite(next);
+        if (suite.cases.length >= 100)
+          throw Error("A Jeval can have at most 100 cases.");
+        // Validate this case's schema and keyed answers; other edits may be incomplete.
+        validateSuite({
+          name: "Case authoring",
+          model: "Case authoring",
+          questions: suite.questions.map((q) => ({ ...q, name: "Question" })),
+          stateSchema: fields,
+          cases: [c],
+        });
         const errors = stateErrors({ ...suite, cases: [c] });
         if (errors.length) throw Error(errors.join(" "));
       }
